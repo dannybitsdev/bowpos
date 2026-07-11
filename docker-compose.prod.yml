@@ -1,0 +1,55 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: bowpos-db-prod
+    env_file:
+      - .env.production
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-appuser}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+      POSTGRES_DB: ${POSTGRES_DB:-appdb}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-appuser} -d ${POSTGRES_DB:-appdb}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks:
+      - bowpos-network
+
+  backend:
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-your-org}/${GITHUB_REPOSITORY_NAME:-bowpos}/backend:latest
+    container_name: bowpos-backend-prod
+    env_file:
+      - .env.production
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql://appuser:changeme@db:5432/appdb?schema=public}
+      PORT: ${BACKEND_PORT:-8080}
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "${BACKEND_PORT:-8080}:8080"
+    networks:
+      - bowpos-network
+
+  frontend:
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-your-org}/${GITHUB_REPOSITORY_NAME:-bowpos}/frontend:latest
+    container_name: bowpos-frontend-prod
+    depends_on:
+      - backend
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    networks:
+      - bowpos-network
+
+volumes:
+  postgres_data:
+
+networks:
+  bowpos-network:
+    driver: bridge

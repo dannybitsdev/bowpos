@@ -1,0 +1,97 @@
+services:
+  traefik:
+    image: traefik:v3.1
+    container_name: bowpos-traefik
+    command:
+      - --api.dashboard=true
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+      - --entrypoints.web.http.redirections.entrypoint.scheme=https
+      - --entrypoints.web.http.redirections.entrypoint.permanent=true
+      - --certificatesresolvers.letsencrypt.acme.dnschallenge=true
+      - --certificatesresolvers.letsencrypt.acme.dnschallenge.provider=cloudflare
+      - --certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL}
+      - --certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json
+    environment:
+      CLOUDFLARE_DNS_API_TOKEN: ${CLOUDFLARE_DNS_API_TOKEN}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - traefik-public-certificates:/letsencrypt
+    networks:
+      - bowpos-network
+
+  db:
+    image: postgres:16-alpine
+    container_name: bowpos-db-prod
+    env_file:
+      - .env.production
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-appuser}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+      POSTGRES_DB: ${POSTGRES_DB:-appdb}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-appuser} -d ${POSTGRES_DB:-appdb}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks:
+      - bowpos-network
+
+  backend:
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-your-org}/${GITHUB_REPOSITORY_NAME:-bowpos}/backend:latest
+    container_name: bowpos-backend-prod
+    env_file:
+      - .env.production
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql://appuser:changeme@db:5432/appdb?schema=public}
+      PORT: ${BACKEND_PORT:-8080}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - bowpos-network
+
+  frontend:
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-your-org}/${GITHUB_REPOSITORY_NAME:-bowpos}/frontend:latest
+    container_name: bowpos-frontend-prod
+    depends_on:
+      - backend
+    networks:
+      - bowpos-network
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: bowpos-nginx-prod
+    depends_on:
+      - frontend
+      - backend
+    volumes:
+      - ./nginx.prod.conf:/etc/nginx/conf.d/default.conf:ro
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.bowpos.rule=Host(`${DOMAIN}`) || HostRegexp(`{tenant:[a-z0-9-]+}.${DOMAIN}`)
+      - traefik.http.routers.bowpos.entrypoints=websecure
+      - traefik.http.routers.bowpos.tls=true
+      - traefik.http.routers.bowpos.tls.certresolver=letsencrypt
+      - traefik.http.routers.bowpos.tls.domains[0].main=${DOMAIN}
+      - traefik.http.routers.bowpos.tls.domains[0].sans=*.${DOMAIN}
+      - traefik.http.services.bowpos.loadbalancer.server.port=80
+    networks:
+      - bowpos-network
+
+volumes:
+  postgres_data:
+  traefik-public-certificates:
+
+networks:
+  bowpos-network:
+    driver: bridge

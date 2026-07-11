@@ -1,0 +1,84 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: bowpos-db
+    env_file:
+      - .env
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-appuser}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+      POSTGRES_DB: ${POSTGRES_DB:-appdb}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-appuser} -d ${POSTGRES_DB:-appdb}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks:
+      - bowpos-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: dev
+    container_name: bowpos-backend
+    working_dir: /app
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql://appuser:changeme@db:5432/appdb?schema=public}
+      PORT: ${BACKEND_PORT:-8080}
+      RUST_LOG: ${RUST_LOG:-info}
+    volumes:
+      - ./backend:/app
+      - cargo-target:/app/target
+      - cargo-registry:/usr/local/cargo/registry
+    ports:
+      - "${BACKEND_PORT:-8080}:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    command: >
+      sh -c "until pg_isready -h db -p 5432 -U $$POSTGRES_USER; do echo 'Waiting for PostgreSQL...'; sleep 2; done; cargo watch -x run"
+    networks:
+      - bowpos-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: dev
+    container_name: bowpos-frontend
+    working_dir: /app
+    env_file:
+      - .env
+    environment:
+      VITE_HOST: 0.0.0.0
+      CHOKIDAR_USEPOLLING: "true"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - pnpm-store:/root/.local/share/pnpm/store
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    depends_on:
+      - backend
+    command: >
+      sh -c "corepack enable && corepack prepare pnpm@9.15.0 --activate && pnpm install --ignore-scripts=false && pnpm dev --host 0.0.0.0 --port 3000"
+    networks:
+      - bowpos-network
+
+volumes:
+  postgres_data:
+  cargo-target:
+  cargo-registry:
+  pnpm-store:
+
+networks:
+  bowpos-network:
+    driver: bridge
