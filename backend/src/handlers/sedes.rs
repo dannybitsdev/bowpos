@@ -1,12 +1,14 @@
 use axum::{
     extract::{Json, State},
     http::StatusCode,
-    routing::{get, post},
+    routing::get,
     Router,
 };
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, Row};
+use sqlx::Row;
 use uuid::Uuid;
+
+use crate::AppState;
 
 #[derive(Deserialize)]
 pub struct CreateSedePayload {
@@ -25,16 +27,16 @@ pub struct SedeResponse {
     pub ciudad: String,
 }
 
-pub fn sedes_router() -> Router<PgPool> {
+pub fn sedes_router() -> Router<AppState> {
     Router::new()
         .route("/sedes", get(list_sedes).post(create_sede))
 }
 
 pub async fn list_sedes(
-    State(pool): State<PgPool>,
+    State(state): State<AppState>,
 ) -> Result<Json<Vec<SedeResponse>>, StatusCode> {
     let rows = sqlx::query("SELECT id, tenant_id, nombre, direccion, ciudad FROM sedes ORDER BY nombre")
-        .fetch_all(&pool)
+        .fetch_all(&state.pool)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
@@ -52,7 +54,7 @@ pub async fn list_sedes(
 }
 
 pub async fn create_sede(
-    State(pool): State<PgPool>,
+    State(state): State<AppState>,
     Json(payload): Json<CreateSedePayload>,
 ) -> Result<(StatusCode, Json<SedeResponse>), StatusCode> {
     let id = Uuid::new_v4();
@@ -62,7 +64,7 @@ pub async fn create_sede(
         .bind(payload.nombre)
         .bind(payload.direccion)
         .bind(payload.ciudad)
-        .fetch_one(&pool)
+        .fetch_one(&state.pool)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 

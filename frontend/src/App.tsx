@@ -1,19 +1,19 @@
-import React from 'react';
-import { Sidebar } from './components/Sidebar';
-import { Dashboard } from './pages/Dashboard';
+import { BrowserRouter } from 'react-router-dom';
+
+import { AppRouter } from './app/AppRouter';
+import { AuthProvider } from './features/auth/application/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 
-const App: React.FC = () => {
+function App() {
   return (
     <ThemeProvider>
-      <div className="flex min-h-screen bg-[var(--color-background)]">
-        <Sidebar />
-        <main className="flex-1">
-          <Dashboard />
-        </main>
-      </div>
+      <AuthProvider>
+        <BrowserRouter>
+          <AppRouter />
+        </BrowserRouter>
+      </AuthProvider>
     </ThemeProvider>
   );
-};
+}
 
 export default App;
