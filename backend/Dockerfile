@@ -34,7 +34,7 @@ RUN mkdir -p src \
 COPY . .
 RUN cargo chef prepare --recipe-path recipe.json
 
-FROM rust:1.88-bookworm AS builder
+FROM lukemathwalker/cargo-chef:latest-rust-1.88-bookworm AS builder
 WORKDIR /app
 
 RUN apt-get update \
@@ -61,6 +61,7 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /app/target/release/backend /app/backend
+COPY migrations /app/migrations
 
 EXPOSE 8080
 CMD ["/app/backend"]
