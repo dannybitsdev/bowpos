@@ -18,6 +18,8 @@ EXPOSE 3000
 CMD ["sh", "-c", "pnpm install --frozen-lockfile && pnpm dev --host 0.0.0.0 --port 3000"]
 
 FROM base AS build
+ARG VITE_API_URL=/api
+ENV VITE_API_URL=$VITE_API_URL
 COPY package.json pnpm-lock.yaml* ./
 RUN pnpm install --frozen-lockfile --ignore-scripts=false
 
