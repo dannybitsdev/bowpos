@@ -8,6 +8,8 @@ on:
       - 'backend/**'
       - 'frontend/**'
       - 'docker-compose*.yml'
+      - 'nginx*.conf'
+      - 'backend/migrations/**'
       - '.github/workflows/deploy.yml'
   workflow_dispatch:
 

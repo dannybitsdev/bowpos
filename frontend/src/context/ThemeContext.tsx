@@ -39,7 +39,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   useEffect(() => {
     const loadTheme = async () => {
       try {
-        const response = await fetch('http://localhost:8080/api/config/ui');
+        const response = await fetch(`${import.meta.env.VITE_API_URL ?? '/api'}/config/ui`);
         const data = await response.json();
         setTheme((current) => ({
           ...current,
