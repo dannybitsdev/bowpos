@@ -10,16 +10,16 @@ RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
 
 FROM base AS dev
 COPY package.json pnpm-lock.yaml* ./
-RUN pnpm install --ignore-scripts=false
+RUN pnpm install --frozen-lockfile --ignore-scripts=false
 
 COPY . .
 
 EXPOSE 3000
-CMD ["sh", "-c", "pnpm install && pnpm dev --host 0.0.0.0 --port 3000"]
+CMD ["sh", "-c", "pnpm install --frozen-lockfile && pnpm dev --host 0.0.0.0 --port 3000"]
 
 FROM base AS build
 COPY package.json pnpm-lock.yaml* ./
-RUN pnpm install --ignore-scripts=false
+RUN pnpm install --frozen-lockfile --ignore-scripts=false
 
 COPY . .
 RUN pnpm build
