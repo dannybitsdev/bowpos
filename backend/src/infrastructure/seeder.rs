@@ -30,7 +30,11 @@ pub async fn seed_initial_super_admin(pool: &PgPool) -> Result<(), anyhow::Error
         r#"
         INSERT INTO usuarios (id, tenant_id, sede_id, nombre, email, password_hash, rol)
         VALUES ($1, $2, NULL, $3, $4, $5, 'SUPER_ADMIN')
-        ON CONFLICT (email) DO NOTHING
+        ON CONFLICT (email) DO UPDATE SET
+            tenant_id = EXCLUDED.tenant_id,
+            nombre = EXCLUDED.nombre,
+            password_hash = EXCLUDED.password_hash,
+            rol = EXCLUDED.rol
         "#,
     )
     .bind(Uuid::new_v4())
