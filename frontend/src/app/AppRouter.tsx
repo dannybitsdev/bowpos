@@ -24,7 +24,7 @@ function DashboardLayout() {
   return (
     <div className="flex min-h-screen overflow-x-hidden bg-[var(--color-background)]">
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      <main className="min-w-0 flex-1">
+      <main className="min-w-0 flex-1 lg:ml-72">
         <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-[var(--color-border)] bg-[var(--color-background)]/95 px-4 py-3 backdrop-blur lg:hidden">
           <button
             type="button"

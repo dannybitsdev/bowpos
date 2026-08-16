@@ -6,6 +6,8 @@ import { ProductCard } from '../components/ProductCard';
 import type { MenuCategory, MenuResponse, Product, ProductPayload } from './menuTypes';
 import { sortMenu } from './menuUtils';
 
+const PRODUCTS_PER_PAGE = 24;
+
 function MenuSkeleton() {
   return (
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -24,6 +26,7 @@ export function MenuPage() {
   const [saving, setSaving] = useState(false);
   const [deletingProductId, setDeletingProductId] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
 
   async function loadMenu() {
     setLoading(true);
@@ -46,6 +49,11 @@ export function MenuPage() {
     setEditingProduct(null);
     setFormError(null);
     setIsEditorOpen(true);
+  }
+
+  function selectCategory(categoryId: string) {
+    setSelectedCategoryId(categoryId);
+    setPage(1);
   }
 
   function openEdit(product: Product) {
@@ -116,7 +124,22 @@ export function MenuPage() {
     () => categories.find((category) => category.id === selectedCategoryId),
     [categories, selectedCategoryId],
   );
-  const visibleCategories = selectedCategory ? [selectedCategory] : categories;
+  const filteredCategories = useMemo(
+    () => selectedCategory ? [selectedCategory] : categories,
+    [categories, selectedCategory],
+  );
+  const allProducts = useMemo(
+    () => filteredCategories.flatMap((category) => category.products.map((product) => ({ product, category }))),
+    [filteredCategories],
+  );
+  const totalPages = Math.max(1, Math.ceil(allProducts.length / PRODUCTS_PER_PAGE));
+  const currentPage = Math.min(page, totalPages);
+  const pagedProducts = allProducts.slice((currentPage - 1) * PRODUCTS_PER_PAGE, currentPage * PRODUCTS_PER_PAGE);
+  const visibleCategories = filteredCategories
+    .map((category) => ({ ...category, products: pagedProducts.filter((item) => item.category.id === category.id).map((item) => item.product) }))
+    .filter((category) => category.products.length > 0);
+  const firstVisibleProduct = allProducts.length === 0 ? 0 : (currentPage - 1) * PRODUCTS_PER_PAGE + 1;
+  const lastVisibleProduct = Math.min(currentPage * PRODUCTS_PER_PAGE, allProducts.length);
 
   return (
     <section className="min-h-screen min-w-0 bg-[var(--color-background)] p-4 text-[var(--color-text)] sm:p-5 lg:p-8">
@@ -140,8 +163,8 @@ export function MenuPage() {
         <>
           <div className="mb-8 overflow-x-auto pb-2" role="tablist" aria-label="Categorías del menú">
             <div className="flex min-w-max gap-2">
-              <button type="button" role="tab" aria-selected={selectedCategoryId === 'all'} onClick={() => setSelectedCategoryId('all')} className={`rounded-full px-4 py-2 text-sm font-medium transition ${selectedCategoryId === 'all' ? 'bg-[var(--color-primary)] text-black' : 'border border-[var(--color-border)] text-[var(--color-muted)] hover:text-white'}`}>Todas</button>
-              {categories.map((category) => <button key={category.id} type="button" role="tab" aria-selected={selectedCategoryId === category.id} onClick={() => setSelectedCategoryId(category.id)} className={`rounded-full px-4 py-2 text-sm font-medium transition ${selectedCategoryId === category.id ? 'bg-[var(--color-primary)] text-black' : 'border border-[var(--color-border)] text-[var(--color-muted)] hover:text-white'}`}>{category.name}</button>)}
+                  <button type="button" role="tab" aria-selected={selectedCategoryId === 'all'} onClick={() => selectCategory('all')} className={`rounded-full px-4 py-2 text-sm font-medium transition ${selectedCategoryId === 'all' ? 'bg-[var(--color-primary)] text-black' : 'border border-[var(--color-border)] text-[var(--color-muted)] hover:text-white'}`}>Todas</button>
+                  {categories.map((category) => <button key={category.id} type="button" role="tab" aria-selected={selectedCategoryId === category.id} onClick={() => selectCategory(category.id)} className={`rounded-full px-4 py-2 text-sm font-medium transition ${selectedCategoryId === category.id ? 'bg-[var(--color-primary)] text-black' : 'border border-[var(--color-border)] text-[var(--color-muted)] hover:text-white'}`}>{category.name}</button>)}
             </div>
           </div>
           <div className="space-y-10">
@@ -153,6 +176,14 @@ export function MenuPage() {
               {category.products.length ? <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{category.products.map((product) => <div key={product.id} className="relative"><ProductCard product={product} /><div className="absolute right-3 top-3 flex gap-2"><button type="button" onClick={() => openEdit(product)} className="rounded-lg border border-white/20 bg-black/75 px-2.5 py-1.5 text-xs font-medium text-white backdrop-blur transition hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]">Editar</button><button type="button" onClick={() => deleteProduct(product)} disabled={deletingProductId === product.id} className="rounded-lg border border-rose-400/40 bg-black/75 px-2.5 py-1.5 text-xs font-medium text-rose-200 backdrop-blur transition hover:border-rose-300 hover:text-white disabled:opacity-50" aria-label={`Eliminar ${product.name}`}>{deletingProductId === product.id ? 'Eliminando...' : 'Eliminar'}</button></div></div>)}</div> : <p className="text-sm text-[var(--color-muted)]">No hay productos activos en esta categoría.</p>}
             </section>)}
           </div>
+          {totalPages > 1 ? <nav className="mt-8 flex flex-col gap-3 border-t border-[var(--color-border)] pt-5 sm:flex-row sm:items-center sm:justify-between" aria-label="Paginación del menú">
+            <p className="text-sm text-[var(--color-muted)]">Mostrando {firstVisibleProduct}-{lastVisibleProduct} de {allProducts.length} productos</p>
+            <div className="flex items-center gap-2">
+              <button type="button" onClick={() => setPage((value) => Math.max(1, value - 1))} disabled={currentPage === 1} className="rounded-xl border border-[var(--color-border)] px-3 py-2 text-sm text-[var(--color-muted)] transition hover:text-white disabled:cursor-not-allowed disabled:opacity-40">Anterior</button>
+              <span className="min-w-20 text-center text-sm text-white">Página {currentPage} de {totalPages}</span>
+              <button type="button" onClick={() => setPage((value) => Math.min(totalPages, value + 1))} disabled={currentPage === totalPages} className="rounded-xl border border-[var(--color-border)] px-3 py-2 text-sm text-[var(--color-muted)] transition hover:text-white disabled:cursor-not-allowed disabled:opacity-40">Siguiente</button>
+            </div>
+          </nav> : null}
         </>
       )}
 

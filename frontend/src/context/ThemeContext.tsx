@@ -43,10 +43,10 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const data = await response.json();
         setTheme((current) => ({
           ...current,
-          colorPrimary: data.color_primario ?? current.colorPrimary,
-          colorSecondary: data.color_secundario ?? current.colorSecondary,
-          colorBackground: data.color_fondo ?? current.colorBackground,
-          typography: data.tipografia ?? current.typography,
+          colorPrimary: data.primary_color ?? current.colorPrimary,
+          colorSecondary: data.secondary_color ?? current.colorSecondary,
+          colorBackground: data.background_color ?? current.colorBackground,
+          typography: data.font_family ?? current.typography,
           logoUrl: data.logo_url ?? current.logoUrl,
         }));
       } catch (error) {
