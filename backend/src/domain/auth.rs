@@ -94,6 +94,7 @@ pub struct Tenant {
 pub struct User {
     pub id: Uuid,
     pub tenant_id: Uuid,
+    pub tenant_name: String,
     pub name: String,
     pub email: Email,
     pub password_hash: PasswordHash,

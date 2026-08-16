@@ -1,5 +1,7 @@
 import React from 'react';
 
+import { useAuthStore } from '../features/auth/application/authStore';
+
 type NavItem = {
   label: string;
   active?: boolean;
@@ -134,6 +136,8 @@ function SettingsIcon() {
 }
 
 export const Sidebar: React.FC = () => {
+  const tenantName = useAuthStore((state) => state.user?.tenant_name ?? 'Bits TI Tecnología');
+
   return (
     <aside className="flex h-screen w-72 flex-col border-r border-[var(--color-border)] bg-[var(--color-sidebar-bg)] px-5 py-6 text-[var(--color-text)]">
       <div className="mb-8 flex items-center gap-3">
@@ -141,7 +145,7 @@ export const Sidebar: React.FC = () => {
           C
         </div>
         <div>
-          <p className="text-lg font-semibold tracking-tight">Callejeros</p>
+          <p className="text-lg font-semibold tracking-tight">{tenantName}</p>
           <p className="text-sm text-[var(--color-muted)]">Sistema POS</p>
         </div>
       </div>

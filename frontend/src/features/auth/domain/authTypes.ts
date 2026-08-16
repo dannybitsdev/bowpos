@@ -3,6 +3,8 @@ export type Role = 'SUPER_ADMIN' | 'ADMIN_TENANT' | 'CAJERO' | 'MESERO';
 export interface AuthUser {
   user_id: string;
   tenant_id: string;
+  tenant_name?: string;
+  name?: string;
   role: Role;
   permissions: string[];
 }

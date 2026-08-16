@@ -10,6 +10,7 @@ pub struct JwtClaims {
     pub sub: String,
     pub user_id: Uuid,
     pub tenant_id: Uuid,
+    pub tenant_name: String,
     pub role: String,
     pub permissions: Vec<String>,
     pub email: String,
@@ -27,6 +28,7 @@ impl JwtClaims {
             sub: user.id.to_string(),
             user_id: user.id,
             tenant_id: user.tenant_id,
+            tenant_name: user.tenant_name.clone(),
             role: user.role.as_str().to_string(),
             permissions: user
                 .role
