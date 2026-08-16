@@ -40,3 +40,27 @@ impl AccessPolicy for TenantAdminOnly {
         &[Permission::ManageTenantUsers]
     }
 }
+
+pub struct MenuReadAccess;
+
+impl AccessPolicy for MenuReadAccess {
+    fn required_roles() -> &'static [Role] {
+        &[Role::SUPER_ADMIN, Role::ADMIN_TENANT, Role::CAJERO, Role::MESERO]
+    }
+
+    fn required_permissions() -> &'static [Permission] {
+        &[Permission::ReadTenantData]
+    }
+}
+
+pub struct MenuWriteAccess;
+
+impl AccessPolicy for MenuWriteAccess {
+    fn required_roles() -> &'static [Role] {
+        &[Role::SUPER_ADMIN, Role::ADMIN_TENANT]
+    }
+
+    fn required_permissions() -> &'static [Permission] {
+        &[Permission::ManageTenantUsers]
+    }
+}

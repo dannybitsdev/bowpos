@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Outlet, Route, Routes } from 'react-router-dom';
 
 import { Sidebar } from '../components/Sidebar';
 import { Dashboard } from '../pages/Dashboard';
+import { MenuPage } from '../pages/MenuPage';
 import { LoginPage } from '../features/auth/presentation/pages/LoginPage';
 import { ProtectedRoute } from '../features/auth/presentation/components/ProtectedRoute';
 
@@ -39,9 +40,7 @@ function DashboardLayout() {
           </button>
           <span className="truncate text-sm font-semibold text-[var(--color-text)]">Panel central</span>
         </header>
-        <div className="min-w-0">
-        <Dashboard />
-        </div>
+        <div className="min-w-0"><Outlet /></div>
       </main>
     </div>
   );
@@ -53,13 +52,15 @@ export function AppRouter() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/unauthorized" element={<UnauthorizedPage />} />
       <Route
-        path="/dashboard"
         element={
           <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN_TENANT', 'CAJERO', 'MESERO']}>
             <DashboardLayout />
           </ProtectedRoute>
         }
-      />
+      >
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/menu" element={<MenuPage />} />
+      </Route>
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
   );

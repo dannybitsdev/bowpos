@@ -7,50 +7,43 @@ CREATE TABLE IF NOT EXISTS tenants (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS sedes (
+CREATE TABLE IF NOT EXISTS locations (
     id UUID PRIMARY KEY,
     tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
-    nombre VARCHAR(255) NOT NULL,
-    direccion TEXT NOT NULL,
-    ciudad VARCHAR(120) NOT NULL,
-    configuracion_impresora JSONB NOT NULL DEFAULT '{}'::jsonb
+    name VARCHAR(255) NOT NULL,
+    address TEXT NOT NULL,
+    city VARCHAR(120) NOT NULL,
+    printer_config JSONB NOT NULL DEFAULT '{}'::jsonb,
+    UNIQUE (tenant_id, id)
 );
 
-CREATE TABLE IF NOT EXISTS config_ui (
+CREATE TABLE IF NOT EXISTS ui_config (
     tenant_id UUID PRIMARY KEY REFERENCES tenants(id) ON DELETE CASCADE,
-    color_primario VARCHAR(20) NOT NULL,
-    color_secundario VARCHAR(20) NOT NULL,
-    color_fondo VARCHAR(20) NOT NULL,
-    tipografia VARCHAR(100) NOT NULL,
+    primary_color VARCHAR(20) NOT NULL,
+    secondary_color VARCHAR(20) NOT NULL,
+    background_color VARCHAR(20) NOT NULL,
+    font_family VARCHAR(100) NOT NULL,
     logo_url TEXT
 );
 
-CREATE TABLE IF NOT EXISTS usuarios (
+CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY,
     tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
-    sede_id UUID NULL REFERENCES sedes(id) ON DELETE SET NULL,
-    nombre VARCHAR(255) NOT NULL,
+    location_id UUID NULL,
+    name VARCHAR(255) NOT NULL,
     email VARCHAR(255) UNIQUE NOT NULL,
     password_hash TEXT NOT NULL,
-    rol VARCHAR(30) NOT NULL CHECK (rol IN ('SUPER_ADMIN','ADMIN_TENANT','CAJERO','MESERO'))
+    role VARCHAR(30) NOT NULL CHECK (role IN ('SUPER_ADMIN','ADMIN_TENANT','CAJERO','MESERO')),
+    CONSTRAINT users_location_tenant_fkey
+        FOREIGN KEY (location_id, tenant_id) REFERENCES locations(id, tenant_id) ON DELETE SET NULL
 );
 
-CREATE TABLE IF NOT EXISTS productos (
-    id UUID PRIMARY KEY,
-    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
-    nombre VARCHAR(255) NOT NULL,
-    precio NUMERIC(12,2) NOT NULL DEFAULT 0,
-    stock INTEGER NOT NULL DEFAULT 0,
-    imagen_url TEXT
-);
-
-CREATE INDEX IF NOT EXISTS idx_sedes_tenant_id ON sedes (tenant_id);
-CREATE INDEX IF NOT EXISTS idx_usuarios_tenant_id ON usuarios (tenant_id);
-CREATE INDEX IF NOT EXISTS idx_productos_tenant_id ON productos (tenant_id);
+CREATE INDEX IF NOT EXISTS idx_locations_tenant_id ON locations (tenant_id);
+CREATE INDEX IF NOT EXISTS idx_users_tenant_id ON users (tenant_id);
 
 -- RLS note:
--- En Postgres, para aplicar RLS a nivel de tenant, crear una política por tabla:
--- ALTER TABLE sedes ENABLE ROW LEVEL SECURITY;
--- CREATE POLICY sedes_tenant_policy ON sedes
+-- To apply tenant-level RLS in PostgreSQL, create a policy for each table:
+-- ALTER TABLE locations ENABLE ROW LEVEL SECURITY;
+-- CREATE POLICY locations_tenant_policy ON locations
 -- USING (tenant_id = current_setting('app.tenant_id', true)::uuid);
--- La misma idea aplica a usuarios, productos, etc.
+-- The same approach applies to users, categories, products, and other tenant data.
