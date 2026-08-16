@@ -1,5 +1,7 @@
 import React from 'react';
 
+import { useAuthStore } from '../features/auth/application/authStore';
+
 type Metric = {
   label: string;
   value: string;
@@ -90,12 +92,14 @@ function StatusBadge({ status }: { status: ComplianceItem['status'] }) {
 }
 
 export const Dashboard: React.FC = () => {
+  const tenantName = useAuthStore((state) => state.user?.tenant_name ?? 'Bits TI Tecnología');
+
   return (
     <div className="min-h-screen bg-[var(--color-background)] p-4 text-[var(--color-text)] lg:p-8">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.35em] text-[var(--color-primary)]">Panel Central</p>
-          <h1 className="text-3xl font-semibold tracking-tight text-black">Callejeros</h1>
+          <h1 className="text-3xl font-semibold tracking-tight text-black">{tenantName}</h1>
         </div>
         <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card-bg)] px-4 py-3 text-sm text-[var(--color-muted)] shadow-panel">
           Hoy • 08/07/2026

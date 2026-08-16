@@ -54,6 +54,7 @@ pub struct AuthTokens {
 pub struct AuthUserView {
     pub user_id: Uuid,
     pub tenant_id: Uuid,
+    pub tenant_name: String,
     pub role: Role,
     pub permissions: Vec<String>,
 }

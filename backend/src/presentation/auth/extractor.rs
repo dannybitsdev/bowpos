@@ -193,6 +193,7 @@ mod tests {
             sub: Uuid::new_v4().to_string(),
             user_id: Uuid::new_v4(),
             tenant_id: Uuid::new_v4(),
+            tenant_name: "Bits TI Tecnología".to_string(),
             role: "SUPER_ADMIN".to_string(),
             permissions: vec!["manage:tenant_admins".to_string()],
             email: "admin@example.com".to_string(),
@@ -228,6 +229,7 @@ mod tests {
         let user = crate::domain::auth::User {
             id: Uuid::new_v4(),
             tenant_id: Uuid::new_v4(),
+            tenant_name: "Bits TI Tecnología".to_string(),
             name: "Cashier".to_string(),
             email: Email::parse("cashier@example.com").expect("email"),
             password_hash: PasswordHash::new("$argon2id$v=19$m=19456,t=2,p=1$a2V5$YWJj".to_string()).expect("hash"),

@@ -18,6 +18,22 @@ impl SqlxUserRepository {
     pub fn new(pool: PgPool) -> Self {
         Self { pool }
     }
+
+    async fn get_tenant_name(&self, tenant_id: Uuid) -> Result<String, anyhow::Error> {
+        let row = sqlx::query_scalar::<_, String>(
+            r#"
+            SELECT name
+            FROM tenants
+            WHERE id = $1
+            LIMIT 1
+            "#,
+        )
+        .bind(tenant_id)
+        .fetch_optional(&self.pool)
+        .await?;
+
+        Ok(row.unwrap_or_else(|| "Bits TI Tecnología".to_string()))
+    }
 }
 
 #[async_trait]
@@ -46,6 +62,8 @@ impl UserRepository for SqlxUserRepository {
             return Ok(None);
         };
 
+        let tenant_id: Uuid = record.try_get("tenant_id")?;
+        let tenant_name = self.get_tenant_name(tenant_id).await?;
         let role = Role::from_db(record.try_get::<&str, _>("rol")?)
             .ok_or_else(|| anyhow::anyhow!("invalid role in database"))?;
         let email = Email::parse(record.try_get::<&str, _>("email")?)
@@ -55,7 +73,8 @@ impl UserRepository for SqlxUserRepository {
 
         Ok(Some(User {
             id: record.try_get("id")?,
-            tenant_id: record.try_get("tenant_id")?,
+            tenant_id,
+            tenant_name,
             name: record.try_get("nombre")?,
             email,
             password_hash,
@@ -80,6 +99,8 @@ impl UserRepository for SqlxUserRepository {
             return Ok(None);
         };
 
+        let tenant_id: Uuid = record.try_get("tenant_id")?;
+        let tenant_name = self.get_tenant_name(tenant_id).await?;
         let role = Role::from_db(record.try_get::<&str, _>("rol")?)
             .ok_or_else(|| anyhow::anyhow!("invalid role in database"))?;
         let email = Email::parse(record.try_get::<&str, _>("email")?)
@@ -89,7 +110,8 @@ impl UserRepository for SqlxUserRepository {
 
         Ok(Some(User {
             id: record.try_get("id")?,
-            tenant_id: record.try_get("tenant_id")?,
+            tenant_id,
+            tenant_name,
             name: record.try_get("nombre")?,
             email,
             password_hash,
@@ -164,9 +186,13 @@ impl UserRepository for SqlxUserRepository {
         .fetch_one(&self.pool)
         .await?;
 
+        let tenant_id: Uuid = row.try_get("tenant_id")?;
+        let tenant_name = self.get_tenant_name(tenant_id).await?;
+
         Ok(User {
             id: row.try_get("id")?,
-            tenant_id: row.try_get("tenant_id")?,
+            tenant_id,
+            tenant_name,
             name: row.try_get("nombre")?,
             email: Email::parse(row.try_get::<&str, _>("email")?)
                 .map_err(|_| anyhow::anyhow!("invalid email"))?,

@@ -13,7 +13,7 @@ pub async fn seed_initial_super_admin(pool: &PgPool) -> Result<(), anyhow::Error
     }
 
     let tenant_id = Uuid::new_v4();
-    let hashed = PasswordHasher::default().hash("ChangeMe!12345")?;
+    let hashed = PasswordHasher::default().hash("BitsTITecnologia!2026")?;
 
     sqlx::query(
         r#"
@@ -23,13 +23,13 @@ pub async fn seed_initial_super_admin(pool: &PgPool) -> Result<(), anyhow::Error
         "#,
     )
     .bind(tenant_id)
-    .bind("Tenant Global")
-    .bind("tenant-global")
+    .bind("Bits TI Tecnología")
+    .bind("bits-ti-tecnologia")
     .execute(pool)
     .await?;
 
     let persisted_tenant_id = sqlx::query_scalar::<_, Uuid>(
-        "SELECT id FROM tenants WHERE slug = 'tenant-global' LIMIT 1",
+        "SELECT id FROM tenants WHERE slug = 'bits-ti-tecnologia' LIMIT 1",
     )
     .fetch_one(pool)
     .await?;
@@ -43,8 +43,8 @@ pub async fn seed_initial_super_admin(pool: &PgPool) -> Result<(), anyhow::Error
     )
     .bind(Uuid::new_v4())
     .bind(persisted_tenant_id)
-    .bind("Global Super Admin")
-    .bind("superadmin@bowpos.local")
+    .bind("Bits TI Tecnología")
+    .bind("superadmin@bitstitecnologia.com")
     .bind(hashed)
     .execute(pool)
     .await?;

@@ -342,6 +342,7 @@ impl AuthUseCases {
         Ok(User {
             id: claims.user_id,
             tenant_id: claims.tenant_id,
+            tenant_name: claims.tenant_name.clone(),
             name: claims.name.clone(),
             email,
             password_hash,
@@ -354,6 +355,7 @@ fn to_view(user: User) -> AuthUserView {
     AuthUserView {
         user_id: user.id,
         tenant_id: user.tenant_id,
+        tenant_name: user.tenant_name,
         role: user.role,
         permissions: user
             .role
@@ -386,6 +388,8 @@ mod tests {
             refresh_token_service::RefreshTokenService,
         },
     };
+
+    use super::to_view;
 
     struct MockRepo {
         user: Option<User>,
@@ -486,6 +490,7 @@ mod tests {
         let user = User {
             id: Uuid::new_v4(),
             tenant_id,
+            tenant_name: "Bits TI Tecnología".to_string(),
             name: "Test".to_string(),
             email: Email::parse("test@example.com").expect("valid email"),
             password_hash: PasswordHash::new(
@@ -514,5 +519,26 @@ mod tests {
             .await;
 
         assert!(matches!(result, Err(AppError::InvalidCredentials)));
+    }
+
+    #[tokio::test]
+    async fn login_returns_tenant_name_in_user_view() {
+        let tenant_id = Uuid::new_v4();
+        let user = User {
+            id: Uuid::new_v4(),
+            tenant_id,
+            tenant_name: "Bits TI Tecnología".to_string(),
+            name: "Super Admin".to_string(),
+            email: Email::parse("admin@bitstitecnologia.com").expect("valid email"),
+            password_hash: PasswordHash::new(
+                PasswordHasher::default().hash("StrongP@ssw0rd").expect("hash"),
+            )
+            .expect("password hash"),
+            role: Role::SUPER_ADMIN,
+        };
+
+        let view = to_view(user);
+
+        assert_eq!(view.tenant_name, "Bits TI Tecnología");
     }
 }
