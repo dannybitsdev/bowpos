@@ -95,13 +95,13 @@ export const Dashboard: React.FC = () => {
   const tenantName = useAuthStore((state) => state.user?.tenant_name ?? 'Bits TI Tecnología');
 
   return (
-    <div className="min-h-screen bg-[var(--color-background)] p-4 text-[var(--color-text)] lg:p-8">
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <div>
+    <div className="min-h-screen min-w-0 bg-[var(--color-background)] p-4 text-[var(--color-text)] sm:p-5 lg:p-8">
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
           <p className="text-[11px] font-semibold uppercase tracking-[0.35em] text-[var(--color-primary)]">Panel Central</p>
-          <h1 className="text-3xl font-semibold tracking-tight text-black">{tenantName}</h1>
+          <h1 className="break-words text-3xl font-semibold tracking-tight text-black sm:text-4xl">{tenantName}</h1>
         </div>
-        <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-card-bg)] px-4 py-3 text-sm text-[var(--color-muted)] shadow-panel">
+        <div className="w-fit max-w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-card-bg)] px-4 py-3 text-sm text-[var(--color-muted)] shadow-panel">
           Hoy • 08/07/2026
         </div>
       </div>
@@ -121,10 +121,10 @@ export const Dashboard: React.FC = () => {
         ))}
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[2fr_1fr]">
+      <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(18rem,1fr)]">
         <div className="space-y-6">
-          <div className="rounded-3xl border border-[var(--color-border)] bg-[var(--color-card-bg)] p-5 shadow-panel">
-            <div className="mb-4 flex items-center justify-between">
+          <div className="min-w-0 rounded-3xl border border-[var(--color-border)] bg-[var(--color-card-bg)] p-4 shadow-panel sm:p-5">
+            <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
               <div>
                 <h2 className="text-lg font-semibold text-white">Ventas vs Costos</h2>
                 <p className="text-sm text-[var(--color-muted)]">Rendimiento semanal</p>
@@ -135,7 +135,7 @@ export const Dashboard: React.FC = () => {
             </div>
 
             <div className="rounded-2xl border border-[var(--color-border)] bg-[#0D0D0D] p-4">
-              <svg viewBox="0 0 420 220" className="h-56 w-full" role="img" aria-label="Ventas vs Costos">
+              <svg viewBox="0 0 420 220" className="h-auto min-h-44 w-full" role="img" aria-label="Ventas vs Costos">
                 <line x1="24" y1="188" x2="396" y2="188" stroke="#2b2b2b" strokeWidth="1" />
                 <line x1="24" y1="140" x2="396" y2="140" stroke="#2b2b2b" strokeWidth="1" />
                 <line x1="24" y1="92" x2="396" y2="92" stroke="#2b2b2b" strokeWidth="1" />
@@ -148,7 +148,7 @@ export const Dashboard: React.FC = () => {
                   return <circle key={`${value}-${index}`} cx={x} cy={y} r="4.5" fill="var(--color-primary)" />;
                 })}
               </svg>
-              <div className="mt-3 flex gap-6 text-sm text-[var(--color-muted)]">
+              <div className="mt-3 flex flex-wrap gap-x-6 gap-y-2 text-sm text-[var(--color-muted)]">
                 <span className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-[var(--color-primary)]" /> Ventas</span>
                 <span className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-gray-500" /> Costos</span>
               </div>
@@ -156,7 +156,7 @@ export const Dashboard: React.FC = () => {
           </div>
 
           <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-            <div className="rounded-3xl border border-[var(--color-border)] bg-[var(--color-card-bg)] p-5 shadow-panel">
+            <div className="min-w-0 rounded-3xl border border-[var(--color-border)] bg-[var(--color-card-bg)] p-4 shadow-panel sm:p-5">
               <h2 className="mb-4 text-lg font-semibold text-white">Ventas por categoría</h2>
               <div className="flex items-center justify-center">
                 <div className="relative flex h-44 w-44 items-center justify-center rounded-full">
@@ -183,7 +183,7 @@ export const Dashboard: React.FC = () => {
               </div>
             </div>
 
-            <div className="rounded-3xl border border-[var(--color-border)] bg-[var(--color-card-bg)] p-5 shadow-panel">
+            <div className="min-w-0 rounded-3xl border border-[var(--color-border)] bg-[var(--color-card-bg)] p-4 shadow-panel sm:p-5">
               <p className="text-sm text-[var(--color-muted)]">Plato más vendido</p>
               <h3 className="mt-2 text-xl font-semibold text-white">Bandeja Paisa</h3>
               <p className="mt-3 text-sm leading-6 text-[var(--color-muted)]">
@@ -197,9 +197,9 @@ export const Dashboard: React.FC = () => {
           </div>
         </div>
 
-        <div className="rounded-3xl border border-[var(--color-border)] bg-[var(--color-card-bg)] p-5 shadow-panel">
-          <div className="mb-5 flex items-center justify-between">
-            <div>
+        <div className="min-w-0 rounded-3xl border border-[var(--color-border)] bg-[var(--color-card-bg)] p-4 shadow-panel sm:p-5">
+          <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0">
               <h2 className="text-lg font-semibold text-white">Cumplimiento Legal & Alertas</h2>
               <p className="text-sm text-[var(--color-muted)]">Control operativo del restaurante</p>
             </div>
@@ -212,8 +212,8 @@ export const Dashboard: React.FC = () => {
             {complianceItems.map((item) => (
               <div key={item.title} className="rounded-2xl border border-[var(--color-border)] bg-[#0D0D0D] p-3">
                 <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-medium text-white">{item.title}</p>
+                  <div className="min-w-0">
+                    <p className="break-words text-sm font-medium text-white">{item.title}</p>
                     <p className="mt-1 text-xs text-[var(--color-muted)]">{item.detail}</p>
                   </div>
                   <StatusBadge status={item.status} />

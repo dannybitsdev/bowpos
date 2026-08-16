@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 
 import { Sidebar } from '../components/Sidebar';
@@ -8,7 +9,7 @@ import { ProtectedRoute } from '../features/auth/presentation/components/Protect
 function UnauthorizedPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-zinc-950 px-4 text-zinc-100">
-      <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-8 text-center">
+      <div className="w-full max-w-md rounded-2xl border border-zinc-800 bg-zinc-900 p-6 text-center sm:p-8">
         <h1 className="text-2xl font-semibold">Acceso denegado</h1>
         <p className="mt-2 text-sm text-zinc-400">No tienes permisos para acceder a esta sección.</p>
       </div>
@@ -17,11 +18,30 @@ function UnauthorizedPage() {
 }
 
 function DashboardLayout() {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
   return (
-    <div className="flex min-h-screen bg-[var(--color-background)]">
-      <Sidebar />
-      <main className="flex-1">
+    <div className="flex min-h-screen overflow-x-hidden bg-[var(--color-background)]">
+      <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <main className="min-w-0 flex-1">
+        <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-[var(--color-border)] bg-[var(--color-background)]/95 px-4 py-3 backdrop-blur lg:hidden">
+          <button
+            type="button"
+            onClick={() => setSidebarOpen(true)}
+            className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--color-border)] text-[var(--color-text)] transition hover:border-[var(--color-primary)]"
+            aria-label="Abrir navegación"
+            aria-expanded={sidebarOpen}
+          >
+            <span className="sr-only">Abrir navegación</span>
+            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+              <path d="M4 7h16M4 12h16M4 17h16" />
+            </svg>
+          </button>
+          <span className="truncate text-sm font-semibold text-[var(--color-text)]">Panel central</span>
+        </header>
+        <div className="min-w-0">
         <Dashboard />
+        </div>
       </main>
     </div>
   );
