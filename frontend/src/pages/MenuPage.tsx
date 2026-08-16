@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import axios from 'axios';
 
 import apiClient from '../features/auth/infrastructure/http/apiClient';
 import { ProductCard } from '../components/ProductCard';
@@ -77,8 +78,14 @@ export function MenuPage() {
       else await apiClient.post('/v1/menu/products', payload);
       setIsEditorOpen(false);
       await loadMenu();
-    } catch {
-      setFormError('No fue posible guardar el producto. Verifica los datos e inténtalo nuevamente.');
+    } catch (requestError) {
+      if (axios.isAxiosError(requestError)) {
+        const status = requestError.response?.status;
+        const serverMessage = requestError.response?.data?.message;
+        setFormError(serverMessage ?? (status === 401 ? 'Tu sesión expiró. Cierra sesión e inicia nuevamente.' : status === 403 ? 'No tienes permisos para editar productos.' : `No fue posible guardar el producto (error ${status ?? 'de conexión'}).`));
+      } else {
+        setFormError('No fue posible guardar el producto. Verifica los datos e inténtalo nuevamente.');
+      }
     } finally {
       setSaving(false);
     }
@@ -135,7 +142,7 @@ export function MenuPage() {
           <label className="block text-sm text-[var(--color-muted)]">Nombre<input name="name" defaultValue={editingProduct?.name ?? ''} required maxLength={255} className="mt-2 w-full rounded-xl border border-[var(--color-border)] bg-[#0D0D0D] px-3 py-2.5 text-white outline-none focus:border-[var(--color-primary)]" /></label>
           <label className="block text-sm text-[var(--color-muted)]">Descripción<textarea name="description" defaultValue={editingProduct?.description ?? ''} rows={3} className="mt-2 w-full resize-y rounded-xl border border-[var(--color-border)] bg-[#0D0D0D] px-3 py-2.5 text-white outline-none focus:border-[var(--color-primary)]" /></label>
           <div className="grid gap-4 sm:grid-cols-2"><label className="block text-sm text-[var(--color-muted)]">Precio<input name="price" type="number" min="0" step="0.01" defaultValue={editingProduct?.price ?? 0} required className="mt-2 w-full rounded-xl border border-[var(--color-border)] bg-[#0D0D0D] px-3 py-2.5 text-white outline-none focus:border-[var(--color-primary)]" /></label><label className="block text-sm text-[var(--color-muted)]">Existencias<input name="stock" type="number" min="0" step="1" defaultValue={editingProduct?.stock ?? 0} required className="mt-2 w-full rounded-xl border border-[var(--color-border)] bg-[#0D0D0D] px-3 py-2.5 text-white outline-none focus:border-[var(--color-primary)]" /></label></div>
-          <label className="block text-sm text-[var(--color-muted)]">URL de imagen<input name="image_url" type="url" defaultValue={editingProduct?.image_url ?? ''} className="mt-2 w-full rounded-xl border border-[var(--color-border)] bg-[#0D0D0D] px-3 py-2.5 text-white outline-none focus:border-[var(--color-primary)]" /></label>
+          <label className="block text-sm text-[var(--color-muted)]">URL directa de imagen<input name="image_url" type="url" placeholder="https://ejemplo.com/imagen.jpg" defaultValue={editingProduct?.image_url ?? ''} className="mt-2 w-full rounded-xl border border-[var(--color-border)] bg-[#0D0D0D] px-3 py-2.5 text-white outline-none focus:border-[var(--color-primary)]" /><span className="mt-1 block text-xs text-[var(--color-muted)]">Usa una URL que termine en una imagen o entregue contenido JPG, PNG o WebP; no una página de galería.</span></label>
           {formError ? <p className="rounded-xl border border-rose-400/30 bg-rose-400/10 p-3 text-sm text-rose-200">{formError}</p> : null}
           <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end"><button type="button" onClick={() => setIsEditorOpen(false)} className="rounded-xl border border-[var(--color-border)] px-4 py-2.5 text-sm text-[var(--color-muted)] hover:text-white">Cancelar</button><button type="submit" disabled={saving} className="rounded-xl bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-black disabled:opacity-60">{saving ? 'Guardando...' : 'Guardar producto'}</button></div>
         </form>
