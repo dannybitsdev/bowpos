@@ -146,11 +146,13 @@ async fn main() {
         .layer(axum_middleware::from_fn(tenant_middleware))
         .with_state(app_state);
 
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:8080")
+    let port = env::var("PORT").unwrap_or_else(|_| "8080".to_string());
+    let bind_address = format!("0.0.0.0:{port}");
+    let listener = tokio::net::TcpListener::bind(&bind_address)
         .await
         .expect("bind tcp listener");
 
-    println!("Backend listening on http://0.0.0.0:8080");
+    println!("Backend listening on http://{bind_address}");
     axum::serve(listener, app).await.expect("axum server");
 }
 

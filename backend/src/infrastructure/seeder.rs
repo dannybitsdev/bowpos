@@ -4,14 +4,6 @@ use uuid::Uuid;
 use crate::infrastructure::services::password_hasher::PasswordHasher;
 
 pub async fn seed_initial_super_admin(pool: &PgPool) -> Result<(), anyhow::Error> {
-    let users_count = sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM usuarios")
-        .fetch_one(pool)
-        .await?;
-
-    if users_count > 0 {
-        return Ok(());
-    }
-
     let tenant_id = Uuid::new_v4();
     let hashed = PasswordHasher::default().hash("BitsTITecnologia!2026")?;
 

@@ -2,13 +2,21 @@ import axios from 'axios';
 
 import { useAuthStore } from '../../application/authStore';
 
+const runtimeConfig = (globalThis as typeof globalThis & {
+  __BOWPOS_CONFIG__?: { apiUrl?: string };
+}).__BOWPOS_CONFIG__;
+const configuredApiUrl = runtimeConfig?.apiUrl ?? import.meta.env.VITE_API_URL ?? '/api';
+const apiBaseUrl = configuredApiUrl.replace(/\/$/, '').endsWith('/api')
+  ? configuredApiUrl.replace(/\/$/, '')
+  : `${configuredApiUrl.replace(/\/$/, '')}/api`;
+
 const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_URL ?? '/api',
+  baseURL: apiBaseUrl,
   timeout: 12000,
 });
 
 const refreshClient = axios.create({
-  baseURL: import.meta.env.VITE_API_URL ?? '/api',
+  baseURL: apiBaseUrl,
   timeout: 12000,
 });
 
