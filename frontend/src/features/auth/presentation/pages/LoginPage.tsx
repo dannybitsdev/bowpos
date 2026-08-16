@@ -44,12 +44,12 @@ export function LoginPage() {
   }
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-zinc-950 text-zinc-100">
+    <div className="relative min-h-screen overflow-x-hidden bg-zinc-950 text-zinc-100">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(132,204,22,0.25),_transparent_45%),radial-gradient(circle_at_bottom_right,_rgba(234,88,12,0.2),_transparent_40%)]" />
       <div className="pointer-events-none absolute inset-0 opacity-20 [background-image:linear-gradient(rgba(255,255,255,.08)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.08)_1px,transparent_1px)] [background-size:36px_36px]" />
 
       <main className="relative mx-auto flex min-h-screen w-full max-w-6xl items-center justify-center px-6 py-12">
-        <section className="grid w-full overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900/80 shadow-2xl backdrop-blur md:grid-cols-2">
+        <section className="grid w-full min-w-0 overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900/80 shadow-2xl backdrop-blur md:grid-cols-2">
           <div className="hidden border-r border-zinc-800 bg-gradient-to-br from-zinc-900 via-zinc-950 to-zinc-900 p-10 md:block">
             <p className="text-xs uppercase tracking-[0.35em] text-lime-300">Sabor & Raiz</p>
             <h1 className="mt-4 text-4xl font-semibold leading-tight">Control seguro para operaciones POS multi-sede</h1>

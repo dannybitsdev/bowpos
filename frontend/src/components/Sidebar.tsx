@@ -135,19 +135,34 @@ function SettingsIcon() {
   );
 }
 
-export const Sidebar: React.FC = () => {
+type SidebarProps = {
+  open?: boolean;
+  onClose?: () => void;
+};
+
+export const Sidebar: React.FC<SidebarProps> = ({ open = false, onClose }) => {
   const tenantName = useAuthStore((state) => state.user?.tenant_name ?? 'Bits TI Tecnología');
 
   return (
-    <aside className="flex h-screen w-72 flex-col border-r border-[var(--color-border)] bg-[var(--color-sidebar-bg)] px-5 py-6 text-[var(--color-text)]">
-      <div className="mb-8 flex items-center gap-3">
+    <>
+      {open ? <button type="button" aria-label="Cerrar navegación" onClick={onClose} className="fixed inset-0 z-30 bg-black/70 lg:hidden" /> : null}
+      <aside className={`fixed inset-y-0 left-0 z-40 flex w-[min(18rem,calc(100vw-2rem))] flex-col border-r border-[var(--color-border)] bg-[var(--color-sidebar-bg)] px-5 py-6 text-[var(--color-text)] shadow-2xl transition-transform duration-200 lg:sticky lg:top-0 lg:z-10 lg:h-screen lg:shrink-0 lg:translate-x-0 lg:shadow-none ${open ? 'translate-x-0' : '-translate-x-full'}`}>
+      <div className="mb-8 flex items-start justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
         <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--color-primary)] text-lg font-black text-black shadow-lg shadow-black/20">
           C
         </div>
-        <div>
-          <p className="text-lg font-semibold tracking-tight">{tenantName}</p>
+        <div className="min-w-0">
+          <p className="break-words text-lg font-semibold tracking-tight">{tenantName}</p>
           <p className="text-sm text-[var(--color-muted)]">Sistema POS</p>
         </div>
+        </div>
+        <button type="button" onClick={onClose} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[var(--color-border)] text-[var(--color-muted)] hover:text-[var(--color-text)] lg:hidden" aria-label="Cerrar navegación">
+          <span className="sr-only">Cerrar navegación</span>
+          <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+            <path d="m6 6 12 12M18 6 6 18" />
+          </svg>
+        </button>
       </div>
 
       <label className="mb-6 block text-sm text-[var(--color-muted)]">
@@ -159,10 +174,12 @@ export const Sidebar: React.FC = () => {
         </select>
       </label>
 
-      <nav className="space-y-1.5 overflow-y-auto">
+      <nav className="min-h-0 flex-1 space-y-1.5 overflow-y-auto pr-1">
         {navItems.map((item) => (
           <button
             key={item.label}
+            type="button"
+            onClick={onClose}
             className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition ${
               item.active
                 ? 'bg-[var(--color-primary)] text-black shadow-lg shadow-black/20'
@@ -174,6 +191,7 @@ export const Sidebar: React.FC = () => {
           </button>
         ))}
       </nav>
-    </aside>
+      </aside>
+    </>
   );
 };
