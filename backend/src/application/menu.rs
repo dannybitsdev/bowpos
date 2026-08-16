@@ -46,6 +46,10 @@ impl MenuService {
         self.repository.update_product(tenant_id, product_id, category_id, name, description, price, stock, image_url)
             .await.map_err(MenuError::Repository)
     }
+
+    pub async fn delete_product(&self, tenant_id: Uuid, product_id: Uuid) -> Result<bool, MenuError> {
+        self.repository.delete_product(tenant_id, product_id).await.map_err(MenuError::Repository)
+    }
 }
 
 #[cfg(test)]
@@ -72,6 +76,7 @@ mod tests {
         async fn list_categories(&self, _tenant_id: Uuid) -> Result<Vec<Category>, anyhow::Error> { Ok(Vec::new()) }
         async fn create_product(&self, _tenant_id: Uuid, _category_id: Uuid, _name: &str, _description: Option<&str>, _price: f64, _stock: i32, _image_url: Option<&str>) -> Result<Product, anyhow::Error> { unreachable!() }
         async fn update_product(&self, _tenant_id: Uuid, _product_id: Uuid, _category_id: Uuid, _name: &str, _description: Option<&str>, _price: f64, _stock: i32, _image_url: Option<&str>) -> Result<Option<Product>, anyhow::Error> { unreachable!() }
+        async fn delete_product(&self, _tenant_id: Uuid, _product_id: Uuid) -> Result<bool, anyhow::Error> { unreachable!() }
     }
 
     #[tokio::test]

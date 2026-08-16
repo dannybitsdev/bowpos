@@ -464,6 +464,15 @@ impl MenuRepository for SqlxUserRepository {
         .bind(product_id).bind(tenant_id).fetch_optional(&self.pool).await?;
         row.as_ref().map(product_from_row).transpose()
     }
+
+    async fn delete_product(&self, tenant_id: Uuid, product_id: Uuid) -> Result<bool, anyhow::Error> {
+        let result = sqlx::query("DELETE FROM products WHERE id = $1 AND tenant_id = $2")
+            .bind(product_id)
+            .bind(tenant_id)
+            .execute(&self.pool)
+            .await?;
+        Ok(result.rows_affected() == 1)
+    }
 }
 
 fn product_from_row(row: &sqlx::postgres::PgRow) -> Result<Product, anyhow::Error> {
