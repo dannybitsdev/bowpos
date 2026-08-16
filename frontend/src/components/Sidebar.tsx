@@ -149,7 +149,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ open = false, onClose }) => {
   return (
     <>
       {open ? <button type="button" aria-label="Cerrar navegación" onClick={onClose} className="fixed inset-0 z-30 bg-black/70 lg:hidden" /> : null}
-      <aside className={`fixed inset-y-0 left-0 z-40 flex w-[min(18rem,calc(100vw-2rem))] flex-col border-r border-[var(--color-border)] bg-[var(--color-sidebar-bg)] px-5 py-6 text-[var(--color-text)] shadow-2xl transition-transform duration-200 lg:sticky lg:top-0 lg:z-10 lg:h-screen lg:shrink-0 lg:translate-x-0 lg:shadow-none ${open ? 'translate-x-0' : '-translate-x-full'}`}>
+      <aside className={`fixed inset-y-0 left-0 z-40 flex w-[min(18rem,calc(100vw-2rem))] flex-col border-r border-[var(--color-border)] bg-[var(--color-sidebar-bg)] px-5 py-6 text-[var(--color-text)] shadow-2xl transition-transform duration-200 lg:z-30 lg:h-screen lg:translate-x-0 lg:shadow-none ${open ? 'translate-x-0' : '-translate-x-full'}`}>
       <div className="mb-8 flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
         <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--color-primary)] text-lg font-black text-black shadow-lg shadow-black/20">

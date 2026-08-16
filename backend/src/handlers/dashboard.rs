@@ -15,10 +15,10 @@ pub struct DashboardMetrics {
 
 #[derive(Serialize)]
 pub struct UiConfigResponse {
-    pub color_primario: String,
-    pub color_secundario: String,
-    pub color_fondo: String,
-    pub tipografia: String,
+    pub primary_color: String,
+    pub secondary_color: String,
+    pub background_color: String,
+    pub font_family: String,
     pub logo_url: String,
 }
 
@@ -43,10 +43,10 @@ pub async fn get_dashboard_metrics() -> Result<Json<DashboardMetrics>, StatusCod
 
 pub async fn get_ui_config() -> Result<Json<UiConfigResponse>, StatusCode> {
     Ok(Json(UiConfigResponse {
-        color_primario: "#d97706".to_string(),
-        color_secundario: "#1f2937".to_string(),
-        color_fondo: "#fef3c7".to_string(),
-        tipografia: "Inter".to_string(),
-        logo_url: "https://example.com/logo.png".to_string(),
+        primary_color: "#DEFF9A".to_string(),
+        secondary_color: "#141414".to_string(),
+        background_color: "#0D0D0D".to_string(),
+        font_family: "Inter, sans-serif".to_string(),
+        logo_url: "".to_string(),
     }))
 }
