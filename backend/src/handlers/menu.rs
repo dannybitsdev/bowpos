@@ -2,7 +2,7 @@ use axum::{
     extract::{Path, State, Json},
     http::StatusCode,
     response::IntoResponse,
-    routing::{get, post, put},
+    routing::{delete, get, post, put},
     Router,
 };
 use serde::Serialize;
@@ -39,6 +39,7 @@ pub fn menu_router() -> Router<AppState> {
         .route("/menu/categories", get(list_categories))
         .route("/menu/products", post(create_product))
         .route("/menu/products/:product_id", put(update_product))
+        .route("/menu/products/:product_id", delete(delete_product))
 }
 
 pub async fn list_menu(
@@ -74,6 +75,18 @@ pub async fn update_product(
 ) -> Result<Json<crate::domain::menu::Product>, MenuError> {
     let product = state.menu_service.update_product(auth.user.tenant_id, product_id, payload.category_id, &payload.name, payload.description.as_deref(), payload.price, payload.stock, payload.image_url.as_deref()).await?;
     product.map(Json).ok_or_else(|| MenuError::Repository(anyhow::anyhow!("product not found")))
+}
+
+pub async fn delete_product(
+    State(state): State<AppState>,
+    auth: AuthUser<MenuWriteAccess>,
+    Path(product_id): Path<uuid::Uuid>,
+) -> Result<StatusCode, MenuError> {
+    if state.menu_service.delete_product(auth.user.tenant_id, product_id).await? {
+        Ok(StatusCode::NO_CONTENT)
+    } else {
+        Err(MenuError::Repository(anyhow::anyhow!("product not found")))
+    }
 }
 
 impl IntoResponse for MenuError {

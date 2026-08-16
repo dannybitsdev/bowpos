@@ -22,6 +22,7 @@ export function MenuPage() {
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [saving, setSaving] = useState(false);
+  const [deletingProductId, setDeletingProductId] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
 
   async function loadMenu() {
@@ -91,6 +92,26 @@ export function MenuPage() {
     }
   }
 
+  async function deleteProduct(product: Product) {
+    if (!window.confirm(`¿Eliminar "${product.name}" del menú?`)) return;
+
+    setDeletingProductId(product.id);
+    setError(null);
+    try {
+      await apiClient.delete(`/v1/menu/products/${product.id}`);
+      await loadMenu();
+    } catch (requestError) {
+      if (axios.isAxiosError(requestError)) {
+        const status = requestError.response?.status;
+        setError(status === 401 ? 'Tu sesión expiró. Cierra sesión e inicia nuevamente.' : status === 403 ? 'No tienes permisos para eliminar productos.' : `No fue posible eliminar el producto (error ${status ?? 'de conexión'}).`);
+      } else {
+        setError('No fue posible eliminar el producto.');
+      }
+    } finally {
+      setDeletingProductId(null);
+    }
+  }
+
   const selectedCategory = useMemo(
     () => categories.find((category) => category.id === selectedCategoryId),
     [categories, selectedCategoryId],
@@ -129,7 +150,7 @@ export function MenuPage() {
                 <div className="min-w-0"><h2 id={`category-${category.id}`} className="break-words text-xl font-semibold text-white">{category.name}</h2>{category.description ? <p className="mt-1 text-sm text-[var(--color-muted)]">{category.description}</p> : null}</div>
                 <span className="shrink-0 text-xs text-[var(--color-muted)]">{category.products.length} productos</span>
               </div>
-              {category.products.length ? <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{category.products.map((product) => <div key={product.id} className="relative"><ProductCard product={product} /><button type="button" onClick={() => openEdit(product)} className="absolute right-3 top-3 rounded-lg border border-white/20 bg-black/75 px-2.5 py-1.5 text-xs font-medium text-white backdrop-blur transition hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]">Editar</button></div>)}</div> : <p className="text-sm text-[var(--color-muted)]">No hay productos activos en esta categoría.</p>}
+              {category.products.length ? <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{category.products.map((product) => <div key={product.id} className="relative"><ProductCard product={product} /><div className="absolute right-3 top-3 flex gap-2"><button type="button" onClick={() => openEdit(product)} className="rounded-lg border border-white/20 bg-black/75 px-2.5 py-1.5 text-xs font-medium text-white backdrop-blur transition hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]">Editar</button><button type="button" onClick={() => deleteProduct(product)} disabled={deletingProductId === product.id} className="rounded-lg border border-rose-400/40 bg-black/75 px-2.5 py-1.5 text-xs font-medium text-rose-200 backdrop-blur transition hover:border-rose-300 hover:text-white disabled:opacity-50" aria-label={`Eliminar ${product.name}`}>{deletingProductId === product.id ? 'Eliminando...' : 'Eliminar'}</button></div></div>)}</div> : <p className="text-sm text-[var(--color-muted)]">No hay productos activos en esta categoría.</p>}
             </section>)}
           </div>
         </>

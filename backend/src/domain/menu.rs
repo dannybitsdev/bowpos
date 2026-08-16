@@ -47,4 +47,5 @@ pub trait MenuRepository: Send + Sync {
         stock: i32,
         image_url: Option<&str>,
     ) -> Result<Option<Product>, anyhow::Error>;
+    async fn delete_product(&self, tenant_id: Uuid, product_id: Uuid) -> Result<bool, anyhow::Error>;
 }
