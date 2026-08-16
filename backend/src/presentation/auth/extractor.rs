@@ -104,8 +104,10 @@ mod tests {
 
     use crate::{
         application::auth::use_cases::AuthUseCases,
+        application::menu::MenuService,
         domain::{
             auth::Role,
+            menu::MenuRepository,
             repositories::{LoginAttemptState, RefreshTokenRecord, UserRepository},
             value_objects::{email::Email, password_hash::PasswordHash},
         },
@@ -119,6 +121,18 @@ mod tests {
     use super::AuthUser;
 
     struct EmptyRepo;
+
+    struct EmptyMenuRepo;
+
+    #[async_trait::async_trait]
+    impl MenuRepository for EmptyMenuRepo {
+        async fn list_menu(&self, _tenant_id: Uuid) -> Result<Vec<crate::domain::menu::Category>, anyhow::Error> {
+            Ok(Vec::new())
+        }
+        async fn list_categories(&self, _tenant_id: Uuid) -> Result<Vec<crate::domain::menu::Category>, anyhow::Error> { Ok(Vec::new()) }
+        async fn create_product(&self, _tenant_id: Uuid, _category_id: Uuid, _name: &str, _description: Option<&str>, _price: f64, _stock: i32, _image_url: Option<&str>) -> Result<crate::domain::menu::Product, anyhow::Error> { unreachable!() }
+        async fn update_product(&self, _tenant_id: Uuid, _product_id: Uuid, _category_id: Uuid, _name: &str, _description: Option<&str>, _price: f64, _stock: i32, _image_url: Option<&str>) -> Result<Option<crate::domain::menu::Product>, anyhow::Error> { unreachable!() }
+    }
 
     #[async_trait::async_trait]
     impl UserRepository for EmptyRepo {
@@ -162,6 +176,7 @@ mod tests {
             auth_use_cases: Arc::new(use_cases),
             jwt_service: jwt,
             login_rate_limiter: crate::infrastructure::services::login_rate_limiter::LoginRateLimiter::new(20, 60),
+            menu_service: Arc::new(MenuService::new(Arc::new(EmptyMenuRepo))),
         };
 
         Router::new()

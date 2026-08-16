@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS auth_refresh_tokens (
     id UUID PRIMARY KEY,
-    user_id UUID NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
     token_hash TEXT NOT NULL UNIQUE,
     expires_at TIMESTAMPTZ NOT NULL,

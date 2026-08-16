@@ -1,4 +1,5 @@
 import React from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 import { useAuthStore } from '../features/auth/application/authStore';
 
@@ -141,6 +142,8 @@ type SidebarProps = {
 };
 
 export const Sidebar: React.FC<SidebarProps> = ({ open = false, onClose }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
   const tenantName = useAuthStore((state) => state.user?.tenant_name ?? 'Bits TI Tecnología');
 
   return (
@@ -175,21 +178,30 @@ export const Sidebar: React.FC<SidebarProps> = ({ open = false, onClose }) => {
       </label>
 
       <nav className="min-h-0 flex-1 space-y-1.5 overflow-y-auto pr-1">
-        {navItems.map((item) => (
+        {navItems.map((item) => {
+          const isMenu = item.label === 'Menú';
+          const isActive = isMenu ? location.pathname === '/menu' : location.pathname === '/dashboard';
+
+          return (
           <button
             key={item.label}
             type="button"
-            onClick={onClose}
+            onClick={() => {
+              if (isMenu) navigate('/menu');
+              else if (item.label === 'Dashboard') navigate('/dashboard');
+              onClose?.();
+            }}
             className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition ${
-              item.active
+              isActive
                 ? 'bg-[var(--color-primary)] text-black shadow-lg shadow-black/20'
                 : 'text-[var(--color-muted)] hover:bg-[#171717] hover:text-[var(--color-text)]'
             }`}
           >
-            <span className={`shrink-0 ${item.active ? 'opacity-100' : 'opacity-80'}`}>{item.icon}</span>
+            <span className={`shrink-0 ${isActive ? 'opacity-100' : 'opacity-80'}`}>{item.icon}</span>
             <span className="truncate">{item.label}</span>
           </button>
-        ))}
+          );
+        })}
       </nav>
       </aside>
     </>

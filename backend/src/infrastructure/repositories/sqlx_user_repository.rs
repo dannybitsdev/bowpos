@@ -5,6 +5,7 @@ use uuid::Uuid;
 
 use crate::domain::{
     auth::{Role, Tenant, User},
+    menu::{Category, MenuRepository, Product},
     repositories::{LoginAttemptState, RefreshTokenRecord, UserRepository},
     value_objects::{email::Email, password_hash::PasswordHash},
 };
@@ -39,7 +40,7 @@ impl SqlxUserRepository {
 #[async_trait]
 impl UserRepository for SqlxUserRepository {
     async fn total_users(&self) -> Result<i64, anyhow::Error> {
-        let count = sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM usuarios")
+        let count = sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM users")
             .fetch_one(&self.pool)
             .await?;
         Ok(count)
@@ -48,8 +49,8 @@ impl UserRepository for SqlxUserRepository {
     async fn find_by_email(&self, email: &str) -> Result<Option<User>, anyhow::Error> {
         let row = sqlx::query(
             r#"
-            SELECT id, tenant_id, nombre, email, password_hash, rol
-            FROM usuarios
+            SELECT id, tenant_id, name, email, password_hash, role
+            FROM users
             WHERE email = $1
             LIMIT 1
             "#,
@@ -64,7 +65,7 @@ impl UserRepository for SqlxUserRepository {
 
         let tenant_id: Uuid = record.try_get("tenant_id")?;
         let tenant_name = self.get_tenant_name(tenant_id).await?;
-        let role = Role::from_db(record.try_get::<&str, _>("rol")?)
+        let role = Role::from_db(record.try_get::<&str, _>("role")?)
             .ok_or_else(|| anyhow::anyhow!("invalid role in database"))?;
         let email = Email::parse(record.try_get::<&str, _>("email")?)
             .map_err(|_| anyhow::anyhow!("invalid email in database"))?;
@@ -75,7 +76,7 @@ impl UserRepository for SqlxUserRepository {
             id: record.try_get("id")?,
             tenant_id,
             tenant_name,
-            name: record.try_get("nombre")?,
+            name: record.try_get("name")?,
             email,
             password_hash,
             role,
@@ -85,8 +86,8 @@ impl UserRepository for SqlxUserRepository {
     async fn find_by_id(&self, user_id: Uuid) -> Result<Option<User>, anyhow::Error> {
         let row = sqlx::query(
             r#"
-            SELECT id, tenant_id, nombre, email, password_hash, rol
-            FROM usuarios
+            SELECT id, tenant_id, name, email, password_hash, role
+            FROM users
             WHERE id = $1
             LIMIT 1
             "#,
@@ -101,7 +102,7 @@ impl UserRepository for SqlxUserRepository {
 
         let tenant_id: Uuid = record.try_get("tenant_id")?;
         let tenant_name = self.get_tenant_name(tenant_id).await?;
-        let role = Role::from_db(record.try_get::<&str, _>("rol")?)
+        let role = Role::from_db(record.try_get::<&str, _>("role")?)
             .ok_or_else(|| anyhow::anyhow!("invalid role in database"))?;
         let email = Email::parse(record.try_get::<&str, _>("email")?)
             .map_err(|_| anyhow::anyhow!("invalid email in database"))?;
@@ -112,7 +113,7 @@ impl UserRepository for SqlxUserRepository {
             id: record.try_get("id")?,
             tenant_id,
             tenant_name,
-            name: record.try_get("nombre")?,
+            name: record.try_get("name")?,
             email,
             password_hash,
             role,
@@ -172,9 +173,9 @@ impl UserRepository for SqlxUserRepository {
         let id = Uuid::new_v4();
         let row = sqlx::query(
             r#"
-            INSERT INTO usuarios (id, tenant_id, sede_id, nombre, email, password_hash, rol)
+            INSERT INTO users (id, tenant_id, location_id, name, email, password_hash, role)
             VALUES ($1, $2, NULL, $3, $4, $5, $6)
-            RETURNING id, tenant_id, nombre, email, password_hash, rol
+            RETURNING id, tenant_id, name, email, password_hash, role
             "#,
         )
         .bind(id)
@@ -193,12 +194,12 @@ impl UserRepository for SqlxUserRepository {
             id: row.try_get("id")?,
             tenant_id,
             tenant_name,
-            name: row.try_get("nombre")?,
+            name: row.try_get("name")?,
             email: Email::parse(row.try_get::<&str, _>("email")?)
                 .map_err(|_| anyhow::anyhow!("invalid email"))?,
             password_hash: PasswordHash::new(row.try_get::<String, _>("password_hash")?)
                 .map_err(|_| anyhow::anyhow!("invalid hash"))?,
-            role: Role::from_db(row.try_get::<&str, _>("rol")?)
+            role: Role::from_db(row.try_get::<&str, _>("role")?)
                 .ok_or_else(|| anyhow::anyhow!("invalid role"))?,
         })
     }
@@ -352,4 +353,123 @@ impl UserRepository for SqlxUserRepository {
 
         Ok(())
     }
+}
+
+#[async_trait]
+impl MenuRepository for SqlxUserRepository {
+    async fn list_menu(&self, tenant_id: Uuid) -> Result<Vec<Category>, anyhow::Error> {
+        let rows = sqlx::query(
+            r#"
+            SELECT
+                c.id AS category_id,
+                c.name AS category_name,
+                c.description AS category_description,
+                c.display_order,
+                p.id AS product_id,
+                p.name AS product_name,
+                p.description AS product_description,
+                p.price::text AS product_price,
+                p.image_url AS product_image_url,
+                p.stock AS product_stock
+            FROM categories c
+            LEFT JOIN products p
+                ON p.category_id = c.id
+                AND p.tenant_id = c.tenant_id
+                AND p.is_active = true
+            WHERE c.tenant_id = $1
+                AND c.is_active = true
+            ORDER BY c.display_order ASC, c.name ASC, p.name ASC
+            "#,
+        )
+        .bind(tenant_id)
+        .fetch_all(&self.pool)
+        .await?;
+
+        let mut categories: Vec<Category> = Vec::new();
+        for row in rows {
+            let category_id: Uuid = row.try_get("category_id")?;
+            let category_index = categories.iter().position(|category| category.id == category_id);
+
+            let category_index = match category_index {
+                Some(index) => index,
+                None => {
+                    categories.push(Category {
+                        id: category_id,
+                        name: row.try_get("category_name")?,
+                        description: row.try_get("category_description")?,
+                        display_order: row.try_get("display_order")?,
+                        products: Vec::new(),
+                    });
+                    categories.len() - 1
+                }
+            };
+
+            let product_id: Option<Uuid> = row.try_get("product_id")?;
+            if let Some(product_id) = product_id {
+                let price_text: String = row.try_get("product_price")?;
+                categories[category_index].products.push(Product {
+                    id: product_id,
+                    category_id,
+                    name: row.try_get("product_name")?,
+                    description: row.try_get("product_description")?,
+                    price: price_text.parse::<f64>()?,
+                    image_url: row.try_get("product_image_url")?,
+                    stock: row.try_get("product_stock")?,
+                });
+            }
+        }
+
+        Ok(categories)
+    }
+
+    async fn list_categories(&self, tenant_id: Uuid) -> Result<Vec<Category>, anyhow::Error> {
+        let rows = sqlx::query(
+            "SELECT id, name, description, display_order FROM categories WHERE tenant_id = $1 AND is_active = true ORDER BY display_order, name",
+        )
+        .bind(tenant_id)
+        .fetch_all(&self.pool)
+        .await?;
+
+        rows.into_iter().map(|row| Ok(Category {
+            id: row.try_get("id")?,
+            name: row.try_get("name")?,
+            description: row.try_get("description")?,
+            display_order: row.try_get("display_order")?,
+            products: Vec::new(),
+        })).collect()
+    }
+
+    async fn create_product(
+        &self, tenant_id: Uuid, category_id: Uuid, name: &str, description: Option<&str>,
+        price: f64, stock: i32, image_url: Option<&str>,
+    ) -> Result<Product, anyhow::Error> {
+        let row = sqlx::query(
+            "INSERT INTO products (id, tenant_id, category_id, name, description, price, stock, image_url) SELECT $1, $2, id, $3, $4, $5, $6, $7 FROM categories WHERE id = $8 AND tenant_id = $2 AND is_active = true RETURNING id, category_id, name, description, price::text AS price, stock, image_url",
+        )
+        .bind(Uuid::new_v4()).bind(tenant_id).bind(name).bind(description)
+        .bind(price).bind(stock).bind(image_url).bind(category_id)
+        .fetch_optional(&self.pool).await?
+        .ok_or_else(|| anyhow::anyhow!("category not found for tenant"))?;
+        product_from_row(&row)
+    }
+
+    async fn update_product(
+        &self, tenant_id: Uuid, product_id: Uuid, category_id: Uuid, name: &str,
+        description: Option<&str>, price: f64, stock: i32, image_url: Option<&str>,
+    ) -> Result<Option<Product>, anyhow::Error> {
+        let row = sqlx::query(
+            "UPDATE products SET category_id = $1, name = $2, description = $3, price = $4, stock = $5, image_url = $6, updated_at = NOW() WHERE id = $7 AND tenant_id = $8 AND EXISTS (SELECT 1 FROM categories WHERE id = $1 AND tenant_id = $8 AND is_active = true) RETURNING id, category_id, name, description, price::text AS price, stock, image_url",
+        )
+        .bind(category_id).bind(name).bind(description).bind(price).bind(stock).bind(image_url)
+        .bind(product_id).bind(tenant_id).fetch_optional(&self.pool).await?;
+        row.as_ref().map(product_from_row).transpose()
+    }
+}
+
+fn product_from_row(row: &sqlx::postgres::PgRow) -> Result<Product, anyhow::Error> {
+    Ok(Product {
+        id: row.try_get("id")?, category_id: row.try_get("category_id")?, name: row.try_get("name")?,
+        description: row.try_get("description")?, price: row.try_get::<String, _>("price")?.parse()?,
+        stock: row.try_get("stock")?, image_url: row.try_get("image_url")?,
+    })
 }

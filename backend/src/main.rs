@@ -14,7 +14,8 @@ use axum::{
 };
 use handlers::{
     dashboard::{get_dashboard_metrics, get_ui_config},
-    sedes::sedes_router,
+    locations::locations_router,
+    menu::menu_router,
 };
 use infrastructure::{repositories::sqlx_user_repository::SqlxUserRepository, seeder::seed_initial_super_admin, services::{jwt_service::JwtService, login_rate_limiter::LoginRateLimiter, password_hasher::PasswordHasher, refresh_token_service::RefreshTokenService}};
 use middleware::tenant::tenant_middleware;
@@ -24,7 +25,7 @@ use sqlx::PgPool;
 use std::{env, sync::Arc};
 use tower_http::cors::{Any, CorsLayer};
 
-use crate::application::auth::use_cases::AuthUseCases;
+use crate::application::{auth::use_cases::AuthUseCases, menu::MenuService};
 
 #[derive(Clone)]
 pub struct AppState {
@@ -32,6 +33,7 @@ pub struct AppState {
     pub auth_use_cases: Arc<AuthUseCases>,
     pub jwt_service: JwtService,
     pub login_rate_limiter: LoginRateLimiter,
+    pub menu_service: Arc<MenuService>,
 }
 
 #[derive(Serialize)]
@@ -94,12 +96,7 @@ async fn main() {
 
     for path in paths {
         let sql = std::fs::read_to_string(&path).expect("migration sql");
-        for statement in sql.split(";") {
-            let stmt = statement.trim();
-            if !stmt.is_empty() {
-                sqlx::query(stmt).execute(&pool).await.expect("apply migration");
-            }
-        }
+        sqlx::raw_sql(&sql).execute(&pool).await.expect("apply migration");
     }
 
     seed_initial_super_admin(&pool).await.expect("seed super admin");
@@ -114,6 +111,7 @@ async fn main() {
         login_lock_max_attempts,
         login_lock_minutes,
     ));
+    let menu_service = Arc::new(MenuService::new(Arc::new(SqlxUserRepository::new(pool.clone()))));
 
     let app_state = AppState {
         pool: pool.clone(),
@@ -123,13 +121,15 @@ async fn main() {
             login_rate_limit_max,
             login_rate_limit_window_seconds,
         ),
+        menu_service,
     };
 
     let app = Router::new()
         .route("/health", get(health))
         .route("/api/dashboard", get(get_dashboard_metrics))
         .route("/api/config/ui", get(get_ui_config))
-        .nest("/api", sedes_router())
+        .nest("/api", locations_router())
+        .nest("/api/v1", menu_router())
         .nest("/api/auth", auth_router())
         .layer(
             CorsLayer::new()
