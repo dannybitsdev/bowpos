@@ -66,6 +66,12 @@ export function MenuPage() {
       image_url: String(form.get('image_url') ?? '').trim() || null,
     };
 
+    if (!payload.name || !payload.category_id || !Number.isFinite(payload.price) || payload.price < 0 || !Number.isInteger(payload.stock) || payload.stock < 0) {
+      setFormError('Completa los campos obligatorios con valores válidos.');
+      setSaving(false);
+      return;
+    }
+
     try {
       if (editingProduct) await apiClient.put(`/v1/menu/products/${editingProduct.id}`, payload);
       else await apiClient.post('/v1/menu/products', payload);
