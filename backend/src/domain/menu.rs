@@ -18,6 +18,7 @@ pub struct Category {
     pub id: Uuid,
     pub name: String,
     pub description: Option<String>,
+    pub image_url: Option<String>,
     pub display_order: i32,
     pub products: Vec<Product>,
 }
@@ -48,4 +49,7 @@ pub trait MenuRepository: Send + Sync {
         image_url: Option<&str>,
     ) -> Result<Option<Product>, anyhow::Error>;
     async fn delete_product(&self, tenant_id: Uuid, product_id: Uuid) -> Result<bool, anyhow::Error>;
+    async fn create_category(&self, tenant_id: Uuid, name: &str, description: Option<&str>, image_url: Option<&str>, display_order: i32) -> Result<Category, anyhow::Error>;
+    async fn update_category(&self, tenant_id: Uuid, category_id: Uuid, name: &str, description: Option<&str>, image_url: Option<&str>, display_order: i32) -> Result<Option<Category>, anyhow::Error>;
+    async fn deactivate_category(&self, tenant_id: Uuid, category_id: Uuid) -> Result<bool, anyhow::Error>;
 }

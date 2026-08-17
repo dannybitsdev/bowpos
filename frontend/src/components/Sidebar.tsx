@@ -14,6 +14,7 @@ const navItems: NavItem[] = [
   { label: 'Ventas', icon: <SalesIcon /> },
   { label: 'Órdenes', icon: <OrdersIcon /> },
   { label: 'Menú', icon: <MenuIcon /> },
+  { label: 'Categorías', icon: <CategoriesIcon /> },
   { label: 'Inventarios', icon: <InventoryIcon /> },
   { label: 'Pagos', icon: <PaymentsIcon /> },
   { label: 'Facturas', icon: <InvoiceIcon /> },
@@ -54,6 +55,17 @@ function MenuIcon() {
   return (
     <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8">
       <path d="M5 7h14M5 12h14M5 17h10" />
+    </svg>
+  );
+}
+
+function CategoriesIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <rect x="4" y="4" width="6" height="6" rx="1" />
+      <rect x="14" y="4" width="6" height="6" rx="1" />
+      <rect x="4" y="14" width="6" height="6" rx="1" />
+      <rect x="14" y="14" width="6" height="6" rx="1" />
     </svg>
   );
 }
@@ -180,7 +192,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ open = false, onClose }) => {
       <nav className="min-h-0 flex-1 space-y-1.5 overflow-y-auto pr-1">
         {navItems.map((item) => {
           const isMenu = item.label === 'Menú';
-          const isActive = isMenu ? location.pathname === '/menu' : location.pathname === '/dashboard';
+          const isCategories = item.label === 'Categorías';
+          const isActive = isMenu ? location.pathname === '/menu' : isCategories ? location.pathname === '/categories' : item.label === 'Dashboard' ? location.pathname === '/dashboard' : false;
 
           return (
           <button
@@ -188,6 +201,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ open = false, onClose }) => {
             type="button"
             onClick={() => {
               if (isMenu) navigate('/menu');
+              else if (isCategories) navigate('/categories');
               else if (item.label === 'Dashboard') navigate('/dashboard');
               onClose?.();
             }}

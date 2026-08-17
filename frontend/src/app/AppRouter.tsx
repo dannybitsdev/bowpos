@@ -4,6 +4,7 @@ import { Navigate, Outlet, Route, Routes } from 'react-router-dom';
 import { Sidebar } from '../components/Sidebar';
 import { Dashboard } from '../pages/Dashboard';
 import { MenuPage } from '../pages/MenuPage';
+import { CategoryManagementPage } from '../pages/CategoryManagementPage';
 import { LoginPage } from '../features/auth/presentation/pages/LoginPage';
 import { ProtectedRoute } from '../features/auth/presentation/components/ProtectedRoute';
 
@@ -60,6 +61,7 @@ export function AppRouter() {
       >
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/menu" element={<MenuPage />} />
+        <Route path="/categories" element={<CategoryManagementPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>

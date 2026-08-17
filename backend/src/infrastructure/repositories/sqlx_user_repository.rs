@@ -364,6 +364,7 @@ impl MenuRepository for SqlxUserRepository {
                 c.id AS category_id,
                 c.name AS category_name,
                 c.description AS category_description,
+                c.image_url AS category_image_url,
                 c.display_order,
                 p.id AS product_id,
                 p.name AS product_name,
@@ -397,6 +398,7 @@ impl MenuRepository for SqlxUserRepository {
                         id: category_id,
                         name: row.try_get("category_name")?,
                         description: row.try_get("category_description")?,
+                        image_url: row.try_get("category_image_url")?,
                         display_order: row.try_get("display_order")?,
                         products: Vec::new(),
                     });
@@ -424,7 +426,7 @@ impl MenuRepository for SqlxUserRepository {
 
     async fn list_categories(&self, tenant_id: Uuid) -> Result<Vec<Category>, anyhow::Error> {
         let rows = sqlx::query(
-            "SELECT id, name, description, display_order FROM categories WHERE tenant_id = $1 AND is_active = true ORDER BY display_order, name",
+            "SELECT id, name, description, image_url, display_order FROM categories WHERE tenant_id = $1 AND is_active = true ORDER BY display_order, name",
         )
         .bind(tenant_id)
         .fetch_all(&self.pool)
@@ -434,6 +436,7 @@ impl MenuRepository for SqlxUserRepository {
             id: row.try_get("id")?,
             name: row.try_get("name")?,
             description: row.try_get("description")?,
+            image_url: row.try_get("image_url")?,
             display_order: row.try_get("display_order")?,
             products: Vec::new(),
         })).collect()
@@ -471,6 +474,26 @@ impl MenuRepository for SqlxUserRepository {
             .bind(tenant_id)
             .execute(&self.pool)
             .await?;
+        Ok(result.rows_affected() == 1)
+    }
+
+    async fn create_category(&self, tenant_id: Uuid, name: &str, description: Option<&str>, image_url: Option<&str>, display_order: i32) -> Result<Category, anyhow::Error> {
+        let row = sqlx::query("INSERT INTO categories (id, tenant_id, name, description, image_url, display_order) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, name, description, image_url, display_order")
+            .bind(Uuid::new_v4()).bind(tenant_id).bind(name).bind(description).bind(image_url).bind(display_order)
+            .fetch_one(&self.pool).await?;
+        Ok(Category { id: row.try_get("id")?, name: row.try_get("name")?, description: row.try_get("description")?, image_url: row.try_get("image_url")?, display_order: row.try_get("display_order")?, products: Vec::new() })
+    }
+
+    async fn update_category(&self, tenant_id: Uuid, category_id: Uuid, name: &str, description: Option<&str>, image_url: Option<&str>, display_order: i32) -> Result<Option<Category>, anyhow::Error> {
+        let row = sqlx::query("UPDATE categories SET name = $1, description = $2, image_url = $3, display_order = $4, updated_at = NOW() WHERE id = $5 AND tenant_id = $6 AND is_active = true RETURNING id, name, description, image_url, display_order")
+            .bind(name).bind(description).bind(image_url).bind(display_order).bind(category_id).bind(tenant_id)
+            .fetch_optional(&self.pool).await?;
+        row.map(|row| Ok(Category { id: row.try_get("id")?, name: row.try_get("name")?, description: row.try_get("description")?, image_url: row.try_get("image_url")?, display_order: row.try_get("display_order")?, products: Vec::new() })).transpose()
+    }
+
+    async fn deactivate_category(&self, tenant_id: Uuid, category_id: Uuid) -> Result<bool, anyhow::Error> {
+        let result = sqlx::query("UPDATE categories SET is_active = false, updated_at = NOW() WHERE id = $1 AND tenant_id = $2 AND is_active = true")
+            .bind(category_id).bind(tenant_id).execute(&self.pool).await?;
         Ok(result.rows_affected() == 1)
     }
 }
