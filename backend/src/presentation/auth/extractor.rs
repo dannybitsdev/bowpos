@@ -133,6 +133,9 @@ mod tests {
         async fn create_product(&self, _tenant_id: Uuid, _category_id: Uuid, _name: &str, _description: Option<&str>, _price: f64, _stock: i32, _image_url: Option<&str>) -> Result<crate::domain::menu::Product, anyhow::Error> { unreachable!() }
         async fn update_product(&self, _tenant_id: Uuid, _product_id: Uuid, _category_id: Uuid, _name: &str, _description: Option<&str>, _price: f64, _stock: i32, _image_url: Option<&str>) -> Result<Option<crate::domain::menu::Product>, anyhow::Error> { unreachable!() }
         async fn delete_product(&self, _tenant_id: Uuid, _product_id: Uuid) -> Result<bool, anyhow::Error> { unreachable!() }
+        async fn create_category(&self, _tenant_id: Uuid, _name: &str, _description: Option<&str>, _image_url: Option<&str>, _display_order: i32) -> Result<crate::domain::menu::Category, anyhow::Error> { unreachable!() }
+        async fn update_category(&self, _tenant_id: Uuid, _category_id: Uuid, _name: &str, _description: Option<&str>, _image_url: Option<&str>, _display_order: i32) -> Result<Option<crate::domain::menu::Category>, anyhow::Error> { unreachable!() }
+        async fn deactivate_category(&self, _tenant_id: Uuid, _category_id: Uuid) -> Result<bool, anyhow::Error> { unreachable!() }
     }
 
     #[async_trait::async_trait]

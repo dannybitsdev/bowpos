@@ -50,6 +50,18 @@ impl MenuService {
     pub async fn delete_product(&self, tenant_id: Uuid, product_id: Uuid) -> Result<bool, MenuError> {
         self.repository.delete_product(tenant_id, product_id).await.map_err(MenuError::Repository)
     }
+
+    pub async fn create_category(&self, tenant_id: Uuid, name: &str, description: Option<&str>, image_url: Option<&str>, display_order: i32) -> Result<Category, MenuError> {
+        self.repository.create_category(tenant_id, name, description, image_url, display_order).await.map_err(MenuError::Repository)
+    }
+
+    pub async fn update_category(&self, tenant_id: Uuid, category_id: Uuid, name: &str, description: Option<&str>, image_url: Option<&str>, display_order: i32) -> Result<Option<Category>, MenuError> {
+        self.repository.update_category(tenant_id, category_id, name, description, image_url, display_order).await.map_err(MenuError::Repository)
+    }
+
+    pub async fn deactivate_category(&self, tenant_id: Uuid, category_id: Uuid) -> Result<bool, MenuError> {
+        self.repository.deactivate_category(tenant_id, category_id).await.map_err(MenuError::Repository)
+    }
 }
 
 #[cfg(test)]
@@ -73,10 +85,15 @@ mod tests {
             Ok(self.categories.clone())
         }
 
-        async fn list_categories(&self, _tenant_id: Uuid) -> Result<Vec<Category>, anyhow::Error> { Ok(Vec::new()) }
+        async fn list_categories(&self, tenant_id: Uuid) -> Result<Vec<Category>, anyhow::Error> {
+            if tenant_id == self.tenant_id { Ok(self.categories.clone()) } else { Ok(Vec::new()) }
+        }
         async fn create_product(&self, _tenant_id: Uuid, _category_id: Uuid, _name: &str, _description: Option<&str>, _price: f64, _stock: i32, _image_url: Option<&str>) -> Result<Product, anyhow::Error> { unreachable!() }
         async fn update_product(&self, _tenant_id: Uuid, _product_id: Uuid, _category_id: Uuid, _name: &str, _description: Option<&str>, _price: f64, _stock: i32, _image_url: Option<&str>) -> Result<Option<Product>, anyhow::Error> { unreachable!() }
         async fn delete_product(&self, _tenant_id: Uuid, _product_id: Uuid) -> Result<bool, anyhow::Error> { unreachable!() }
+        async fn create_category(&self, _tenant_id: Uuid, _name: &str, _description: Option<&str>, _image_url: Option<&str>, _display_order: i32) -> Result<Category, anyhow::Error> { unreachable!() }
+        async fn update_category(&self, _tenant_id: Uuid, _category_id: Uuid, _name: &str, _description: Option<&str>, _image_url: Option<&str>, _display_order: i32) -> Result<Option<Category>, anyhow::Error> { unreachable!() }
+        async fn deactivate_category(&self, _tenant_id: Uuid, _category_id: Uuid) -> Result<bool, anyhow::Error> { unreachable!() }
     }
 
     #[tokio::test]
@@ -86,6 +103,7 @@ mod tests {
             id: Uuid::new_v4(),
             name: "Bebidas".to_string(),
             description: None,
+            image_url: None,
             display_order: 1,
             products: vec![Product {
                 id: Uuid::new_v4(),
@@ -113,6 +131,7 @@ mod tests {
             id: Uuid::new_v4(),
             name: "Platos".to_string(),
             description: None,
+            image_url: None,
             display_order: 1,
             products: vec![
                 Product { id: Uuid::new_v4(), category_id: Uuid::new_v4(), name: "Arepa".to_string(), description: None, price: 1.0, image_url: None, stock: 0 },
@@ -124,5 +143,15 @@ mod tests {
 
         assert_eq!(menu[0].products[0].name, "Arepa");
         assert_eq!(menu[0].products[1].name, "Bandeja");
+    }
+
+    #[tokio::test]
+    async fn categories_are_not_visible_to_another_tenant() {
+        let tenant_id = Uuid::new_v4();
+        let category = Category { id: Uuid::new_v4(), name: "Entradas".to_string(), description: None, image_url: None, display_order: 0, products: Vec::new() };
+        let service = MenuService::new(Arc::new(MockMenuRepository { categories: vec![category], tenant_id }));
+
+        assert_eq!(service.list_categories(tenant_id).await.unwrap().len(), 1);
+        assert!(service.list_categories(Uuid::new_v4()).await.unwrap().is_empty());
     }
 }

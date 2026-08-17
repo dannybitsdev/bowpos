@@ -11,6 +11,7 @@ export type MenuCategory = {
   id: string;
   name: string;
   description?: string | null;
+  image_url?: string | null;
   display_order: number;
   products: Product[];
 };
@@ -20,3 +21,10 @@ export type MenuResponse = {
 };
 
 export type ProductPayload = Omit<Product, 'id'>;
+
+export type CategoryPayload = {
+  name: string;
+  description: string | null;
+  image_url: string | null;
+  display_order: number;
+};
