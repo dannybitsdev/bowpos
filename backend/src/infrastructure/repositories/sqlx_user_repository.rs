@@ -424,6 +424,17 @@ impl MenuRepository for SqlxUserRepository {
         Ok(categories)
     }
 
+    async fn list_products(&self, tenant_id: Uuid) -> Result<Vec<Product>, anyhow::Error> {
+        let rows = sqlx::query(
+            "SELECT id, category_id, name, description, price::text AS price, stock, image_url FROM products WHERE tenant_id = $1 AND is_active = true ORDER BY name",
+        )
+        .bind(tenant_id)
+        .fetch_all(&self.pool)
+        .await?;
+
+        rows.iter().map(product_from_row).collect()
+    }
+
     async fn list_categories(&self, tenant_id: Uuid) -> Result<Vec<Category>, anyhow::Error> {
         let rows = sqlx::query(
             "SELECT id, name, description, image_url, display_order FROM categories WHERE tenant_id = $1 AND is_active = true ORDER BY display_order, name",

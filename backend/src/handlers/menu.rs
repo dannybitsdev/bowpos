@@ -44,6 +44,7 @@ pub struct CategoryPayload {
 pub fn menu_router() -> Router<AppState> {
     Router::new()
         .route("/menu", get(list_menu))
+        .route("/menu/products", get(list_products))
         .route("/menu/categories", get(list_categories))
         .route("/menu/categories", post(create_category))
         .route("/menu/categories/:category_id", put(update_category))
@@ -60,6 +61,13 @@ pub async fn list_menu(
     let tenant_id = auth.user.tenant_id;
     let menu = state.menu_service.list_menu(tenant_id).await?;
     Ok(Json(MenuResponse { data: menu }))
+}
+
+pub async fn list_products(
+    State(state): State<AppState>,
+    auth: AuthUser<MenuReadAccess>,
+) -> Result<Json<Vec<crate::domain::menu::Product>>, MenuError> {
+    Ok(Json(state.menu_service.list_products(auth.user.tenant_id).await?))
 }
 
 pub async fn list_categories(

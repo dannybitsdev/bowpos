@@ -26,6 +26,7 @@ pub struct Category {
 #[async_trait]
 pub trait MenuRepository: Send + Sync {
     async fn list_menu(&self, tenant_id: Uuid) -> Result<Vec<Category>, anyhow::Error>;
+    async fn list_products(&self, tenant_id: Uuid) -> Result<Vec<Product>, anyhow::Error>;
     async fn list_categories(&self, tenant_id: Uuid) -> Result<Vec<Category>, anyhow::Error>;
     async fn create_product(
         &self,
