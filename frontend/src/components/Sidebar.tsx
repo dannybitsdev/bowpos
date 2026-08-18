@@ -193,7 +193,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ open = false, onClose }) => {
         {navItems.map((item) => {
           const isMenu = item.label === 'Menú';
           const isCategories = item.label === 'Categorías';
-          const isActive = isMenu ? location.pathname === '/menu' : isCategories ? location.pathname === '/categories' : item.label === 'Dashboard' ? location.pathname === '/dashboard' : false;
+          const isOrders = item.label === 'Órdenes';
+          const isActive = isMenu ? location.pathname === '/menu' : isCategories ? location.pathname === '/categories' : isOrders ? location.pathname.startsWith('/orders') : item.label === 'Dashboard' ? location.pathname === '/dashboard' : false;
 
           return (
           <button
@@ -202,6 +203,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ open = false, onClose }) => {
             onClick={() => {
               if (isMenu) navigate('/menu');
               else if (isCategories) navigate('/categories');
+              else if (isOrders) navigate('/orders/history');
               else if (item.label === 'Dashboard') navigate('/dashboard');
               onClose?.();
             }}

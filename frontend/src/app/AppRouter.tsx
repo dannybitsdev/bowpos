@@ -5,6 +5,8 @@ import { Sidebar } from '../components/Sidebar';
 import { Dashboard } from '../pages/Dashboard';
 import { MenuPage } from '../pages/MenuPage';
 import { CategoryManagementPage } from '../pages/CategoryManagementPage';
+import { OrderBuilderPage } from '../pages/OrderBuilderPage';
+import { OrdersPage } from '../pages/OrdersPage';
 import { LoginPage } from '../features/auth/presentation/pages/LoginPage';
 import { ProtectedRoute } from '../features/auth/presentation/components/ProtectedRoute';
 
@@ -26,7 +28,7 @@ function DashboardLayout() {
     <div className="flex min-h-screen overflow-x-hidden bg-[var(--color-background)]">
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <main className="min-w-0 flex-1 lg:ml-72">
-        <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-[var(--color-border)] bg-[var(--color-background)]/95 px-4 py-3 backdrop-blur lg:hidden">
+        <header className="screen-only sticky top-0 z-20 flex items-center gap-3 border-b border-[var(--color-border)] bg-[var(--color-background)]/95 px-4 py-3 backdrop-blur lg:hidden">
           <button
             type="button"
             onClick={() => setSidebarOpen(true)}
@@ -62,6 +64,8 @@ export function AppRouter() {
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/menu" element={<MenuPage />} />
         <Route path="/categories" element={<CategoryManagementPage />} />
+        <Route path="/orders" element={<OrderBuilderPage />} />
+        <Route path="/orders/history" element={<OrdersPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>

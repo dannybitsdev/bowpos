@@ -16,8 +16,9 @@ use handlers::{
     dashboard::{get_dashboard_metrics, get_ui_config},
     locations::locations_router,
     menu::menu_router,
+    orders::orders_router,
 };
-use infrastructure::{repositories::sqlx_user_repository::SqlxUserRepository, seeder::seed_initial_super_admin, services::{jwt_service::JwtService, login_rate_limiter::LoginRateLimiter, password_hasher::PasswordHasher, refresh_token_service::RefreshTokenService}};
+use infrastructure::{repositories::{sqlx_orders_repository::SqlxOrderRepository, sqlx_user_repository::SqlxUserRepository}, seeder::seed_initial_super_admin, services::{jwt_service::JwtService, login_rate_limiter::LoginRateLimiter, password_hasher::PasswordHasher, refresh_token_service::RefreshTokenService}};
 use middleware::tenant::tenant_middleware;
 use presentation::auth::router::auth_router;
 use serde::Serialize;
@@ -25,7 +26,7 @@ use sqlx::PgPool;
 use std::{env, sync::Arc};
 use tower_http::cors::{Any, CorsLayer};
 
-use crate::application::{auth::use_cases::AuthUseCases, menu::MenuService};
+use crate::application::{auth::use_cases::AuthUseCases, menu::MenuService, orders::OrderService};
 
 #[derive(Clone)]
 pub struct AppState {
@@ -34,6 +35,7 @@ pub struct AppState {
     pub jwt_service: JwtService,
     pub login_rate_limiter: LoginRateLimiter,
     pub menu_service: Arc<MenuService>,
+    pub order_service: Arc<OrderService>,
 }
 
 #[derive(Serialize)]
@@ -112,6 +114,7 @@ async fn main() {
         login_lock_minutes,
     ));
     let menu_service = Arc::new(MenuService::new(Arc::new(SqlxUserRepository::new(pool.clone()))));
+    let order_service = Arc::new(OrderService::new(Arc::new(SqlxOrderRepository::new(pool.clone()))));
 
     let app_state = AppState {
         pool: pool.clone(),
@@ -122,6 +125,7 @@ async fn main() {
             login_rate_limit_window_seconds,
         ),
         menu_service,
+        order_service,
     };
 
     let app = Router::new()
@@ -130,6 +134,7 @@ async fn main() {
         .route("/api/config/ui", get(get_ui_config))
         .nest("/api", locations_router())
         .nest("/api/v1", menu_router())
+        .nest("/api/v1", orders_router())
         .nest("/api/auth", auth_router())
         .layer(
             CorsLayer::new()
