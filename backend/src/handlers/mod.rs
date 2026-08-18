@@ -1,2 +1,3 @@
 pub mod dashboard;
-pub mod sedes;
+pub mod locations;
+pub mod menu;

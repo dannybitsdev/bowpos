@@ -5,6 +5,7 @@ use axum::{
 };
 
 #[derive(Clone, Default)]
+#[allow(dead_code)]
 pub struct TenantContext {
     pub tenant_id: Option<String>,
     pub slug: Option<String>,

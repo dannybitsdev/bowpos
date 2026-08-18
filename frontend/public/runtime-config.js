@@ -1,0 +1,1 @@
+window.__BOWPOS_CONFIG__ = { apiUrl: '/api' };

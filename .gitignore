@@ -1,4 +1,6 @@
 .env
+.env.production
+.env.traefik
 node_modules/
 dist/
 target/

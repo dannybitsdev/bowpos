@@ -1,4 +1,7 @@
 import React from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+
+import { useAuthStore } from '../features/auth/application/authStore';
 
 type NavItem = {
   label: string;
@@ -11,6 +14,7 @@ const navItems: NavItem[] = [
   { label: 'Ventas', icon: <SalesIcon /> },
   { label: 'Órdenes', icon: <OrdersIcon /> },
   { label: 'Menú', icon: <MenuIcon /> },
+  { label: 'Categorías', icon: <CategoriesIcon /> },
   { label: 'Inventarios', icon: <InventoryIcon /> },
   { label: 'Pagos', icon: <PaymentsIcon /> },
   { label: 'Facturas', icon: <InvoiceIcon /> },
@@ -51,6 +55,17 @@ function MenuIcon() {
   return (
     <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8">
       <path d="M5 7h14M5 12h14M5 17h10" />
+    </svg>
+  );
+}
+
+function CategoriesIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <rect x="4" y="4" width="6" height="6" rx="1" />
+      <rect x="14" y="4" width="6" height="6" rx="1" />
+      <rect x="4" y="14" width="6" height="6" rx="1" />
+      <rect x="14" y="14" width="6" height="6" rx="1" />
     </svg>
   );
 }
@@ -133,17 +148,36 @@ function SettingsIcon() {
   );
 }
 
-export const Sidebar: React.FC = () => {
+type SidebarProps = {
+  open?: boolean;
+  onClose?: () => void;
+};
+
+export const Sidebar: React.FC<SidebarProps> = ({ open = false, onClose }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const tenantName = useAuthStore((state) => state.user?.tenant_name ?? 'Bits TI Tecnología');
+
   return (
-    <aside className="flex h-screen w-72 flex-col border-r border-[var(--color-border)] bg-[var(--color-sidebar-bg)] px-5 py-6 text-[var(--color-text)]">
-      <div className="mb-8 flex items-center gap-3">
+    <>
+      {open ? <button type="button" aria-label="Cerrar navegación" onClick={onClose} className="fixed inset-0 z-30 bg-black/70 lg:hidden" /> : null}
+      <aside className={`fixed inset-y-0 left-0 z-40 flex w-[min(18rem,calc(100vw-2rem))] flex-col border-r border-[var(--color-border)] bg-[var(--color-sidebar-bg)] px-5 py-6 text-[var(--color-text)] shadow-2xl transition-transform duration-200 lg:z-30 lg:h-screen lg:translate-x-0 lg:shadow-none ${open ? 'translate-x-0' : '-translate-x-full'}`}>
+      <div className="mb-8 flex items-start justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
         <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--color-primary)] text-lg font-black text-black shadow-lg shadow-black/20">
           C
         </div>
-        <div>
-          <p className="text-lg font-semibold tracking-tight">Callejeros</p>
+        <div className="min-w-0">
+          <p className="break-words text-lg font-semibold tracking-tight">{tenantName}</p>
           <p className="text-sm text-[var(--color-muted)]">Sistema POS</p>
         </div>
+        </div>
+        <button type="button" onClick={onClose} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[var(--color-border)] text-[var(--color-muted)] hover:text-[var(--color-text)] lg:hidden" aria-label="Cerrar navegación">
+          <span className="sr-only">Cerrar navegación</span>
+          <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+            <path d="m6 6 12 12M18 6 6 18" />
+          </svg>
+        </button>
       </div>
 
       <label className="mb-6 block text-sm text-[var(--color-muted)]">
@@ -155,21 +189,35 @@ export const Sidebar: React.FC = () => {
         </select>
       </label>
 
-      <nav className="space-y-1.5 overflow-y-auto">
-        {navItems.map((item) => (
+      <nav className="min-h-0 flex-1 space-y-1.5 overflow-y-auto pr-1">
+        {navItems.map((item) => {
+          const isMenu = item.label === 'Menú';
+          const isCategories = item.label === 'Categorías';
+          const isActive = isMenu ? location.pathname === '/menu' : isCategories ? location.pathname === '/categories' : item.label === 'Dashboard' ? location.pathname === '/dashboard' : false;
+
+          return (
           <button
             key={item.label}
+            type="button"
+            onClick={() => {
+              if (isMenu) navigate('/menu');
+              else if (isCategories) navigate('/categories');
+              else if (item.label === 'Dashboard') navigate('/dashboard');
+              onClose?.();
+            }}
             className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition ${
-              item.active
+              isActive
                 ? 'bg-[var(--color-primary)] text-black shadow-lg shadow-black/20'
                 : 'text-[var(--color-muted)] hover:bg-[#171717] hover:text-[var(--color-text)]'
             }`}
           >
-            <span className={`shrink-0 ${item.active ? 'opacity-100' : 'opacity-80'}`}>{item.icon}</span>
+            <span className={`shrink-0 ${isActive ? 'opacity-100' : 'opacity-80'}`}>{item.icon}</span>
             <span className="truncate">{item.label}</span>
           </button>
-        ))}
+          );
+        })}
       </nav>
-    </aside>
+      </aside>
+    </>
   );
 };
