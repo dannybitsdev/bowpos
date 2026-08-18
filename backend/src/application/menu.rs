@@ -27,6 +27,10 @@ impl MenuService {
             .map_err(MenuError::Repository)
     }
 
+    pub async fn list_products(&self, tenant_id: Uuid) -> Result<Vec<Product>, MenuError> {
+        self.repository.list_products(tenant_id).await.map_err(MenuError::Repository)
+    }
+
     pub async fn list_categories(&self, tenant_id: Uuid) -> Result<Vec<Category>, MenuError> {
         self.repository.list_categories(tenant_id).await.map_err(MenuError::Repository)
     }
@@ -84,6 +88,8 @@ mod tests {
             }
             Ok(self.categories.clone())
         }
+
+        async fn list_products(&self, _tenant_id: Uuid) -> Result<Vec<Product>, anyhow::Error> { Ok(Vec::new()) }
 
         async fn list_categories(&self, tenant_id: Uuid) -> Result<Vec<Category>, anyhow::Error> {
             if tenant_id == self.tenant_id { Ok(self.categories.clone()) } else { Ok(Vec::new()) }
