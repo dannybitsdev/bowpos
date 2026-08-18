@@ -64,3 +64,17 @@ impl AccessPolicy for MenuWriteAccess {
         &[Permission::ManageTenantUsers]
     }
 }
+
+pub struct OrderReadAccess;
+
+impl AccessPolicy for OrderReadAccess {
+    fn required_roles() -> &'static [Role] { &[Role::SUPER_ADMIN, Role::ADMIN_TENANT, Role::CAJERO, Role::MESERO] }
+    fn required_permissions() -> &'static [Permission] { &[Permission::ReadTenantData] }
+}
+
+pub struct OrderWriteAccess;
+
+impl AccessPolicy for OrderWriteAccess {
+    fn required_roles() -> &'static [Role] { &[Role::SUPER_ADMIN, Role::ADMIN_TENANT, Role::CAJERO, Role::MESERO] }
+    fn required_permissions() -> &'static [Permission] { &[Permission::ReadTenantData] }
+}

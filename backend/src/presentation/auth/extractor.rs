@@ -182,6 +182,7 @@ mod tests {
             jwt_service: jwt,
             login_rate_limiter: crate::infrastructure::services::login_rate_limiter::LoginRateLimiter::new(20, 60),
             menu_service: Arc::new(MenuService::new(Arc::new(EmptyMenuRepo))),
+            order_service: Arc::new(crate::application::orders::OrderService::new(Arc::new(crate::infrastructure::repositories::sqlx_orders_repository::SqlxOrderRepository::new(sqlx::PgPool::connect_lazy("postgres://ignored").expect("pool"))))),
         };
 
         Router::new()
