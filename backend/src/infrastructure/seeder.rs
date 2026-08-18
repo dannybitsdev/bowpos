@@ -121,7 +121,8 @@ async fn seed_demo_orders(pool: &PgPool, tenant_id: Uuid) -> Result<(), anyhow::
         if exists { continue; }
         let order_id = Uuid::new_v4();
         let item_id = Uuid::new_v4();
-        sqlx::query("INSERT INTO orders (id, tenant_id, user_id, service_type, table_name, customer_name, notes, status, subtotal, tax, total) VALUES ($1,$2,$3,'DINE_IN','Mesa 4','Cliente demo',$4,$5,28000,5320,33320)").bind(order_id).bind(tenant_id).bind(user_id).bind(format!("Demo {status}")).bind(status).execute(pool).await?;
+        let order_number: i64 = sqlx::query_scalar("SELECT COALESCE(MAX(order_number), 0) + 1 FROM orders WHERE tenant_id = $1").bind(tenant_id).fetch_one(pool).await?;
+        sqlx::query("INSERT INTO orders (id, order_number, tenant_id, user_id, service_type, table_name, customer_name, notes, status, subtotal, tax, total) VALUES ($1,$2,$3,$4,'DINE_IN','Mesa 4','Cliente demo',$5,$6,28000,5320,33320)").bind(order_id).bind(order_number).bind(tenant_id).bind(user_id).bind(format!("Demo {status}")).bind(status).execute(pool).await?;
         sqlx::query("INSERT INTO order_items (id, tenant_id, order_id, product_id, product_name, quantity, unit_price, subtotal) SELECT $1,$2,$3,id,name,1,price,price FROM products WHERE id = $4 AND tenant_id = $2").bind(item_id).bind(tenant_id).bind(order_id).bind(product_id).execute(pool).await?;
     }
     Ok(())
