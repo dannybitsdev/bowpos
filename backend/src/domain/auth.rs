@@ -9,6 +9,7 @@ use crate::domain::value_objects::{email::Email, password_hash::PasswordHash};
 pub enum Role {
     SUPER_ADMIN,
     ADMIN_TENANT,
+    BRANCH_MANAGER,
     CAJERO,
     MESERO,
 }
@@ -18,6 +19,7 @@ impl Role {
         match self {
             Role::SUPER_ADMIN => "SUPER_ADMIN",
             Role::ADMIN_TENANT => "ADMIN_TENANT",
+            Role::BRANCH_MANAGER => "BRANCH_MANAGER",
             Role::CAJERO => "CAJERO",
             Role::MESERO => "MESERO",
         }
@@ -27,6 +29,7 @@ impl Role {
         match value {
             "SUPER_ADMIN" => Some(Role::SUPER_ADMIN),
             "ADMIN_TENANT" => Some(Role::ADMIN_TENANT),
+            "BRANCH_MANAGER" => Some(Role::BRANCH_MANAGER),
             "CAJERO" => Some(Role::CAJERO),
             "MESERO" => Some(Role::MESERO),
             _ => None,
@@ -42,6 +45,13 @@ impl Role {
                 Permission::ReadTenantData,
             ],
             Role::ADMIN_TENANT => vec![Permission::ManageTenantUsers, Permission::ReadTenantData],
+            Role::BRANCH_MANAGER => vec![
+                Permission::ManageBranchUsers,
+                Permission::ManageBranchCatalog,
+                Permission::ProcessPayments,
+                Permission::CreateOrders,
+                Permission::ReadTenantData,
+            ],
             Role::CAJERO => vec![Permission::ProcessPayments, Permission::ReadTenantData],
             Role::MESERO => vec![Permission::CreateOrders, Permission::ReadTenantData],
         }
@@ -56,6 +66,8 @@ pub enum Permission {
     ReadTenantData,
     ProcessPayments,
     CreateOrders,
+    ManageBranchUsers,
+    ManageBranchCatalog,
 }
 
 impl Permission {
@@ -67,6 +79,8 @@ impl Permission {
             Permission::ReadTenantData => "read:tenant_data",
             Permission::ProcessPayments => "process:payments",
             Permission::CreateOrders => "create:orders",
+            Permission::ManageBranchUsers => "manage:branch_users",
+            Permission::ManageBranchCatalog => "manage:branch_catalog",
         }
     }
 
@@ -78,6 +92,8 @@ impl Permission {
             "read:tenant_data" => Some(Permission::ReadTenantData),
             "process:payments" => Some(Permission::ProcessPayments),
             "create:orders" => Some(Permission::CreateOrders),
+            "manage:branch_users" => Some(Permission::ManageBranchUsers),
+            "manage:branch_catalog" => Some(Permission::ManageBranchCatalog),
             _ => None,
         }
     }
@@ -99,6 +115,8 @@ pub struct User {
     pub email: Email,
     pub password_hash: PasswordHash,
     pub role: Role,
+    /// Sedes a las que el usuario tiene acceso; vacío = todas las sedes del tenant (roles admin).
+    pub branch_ids: Vec<Uuid>,
 }
 
 impl User {
@@ -107,9 +125,18 @@ impl User {
             Role::SUPER_ADMIN => target_role == Role::ADMIN_TENANT,
             Role::ADMIN_TENANT => {
                 self.tenant_id == target_tenant_id
+                    && matches!(target_role, Role::BRANCH_MANAGER | Role::CAJERO | Role::MESERO)
+            }
+            Role::BRANCH_MANAGER => {
+                self.tenant_id == target_tenant_id
                     && matches!(target_role, Role::CAJERO | Role::MESERO)
             }
             Role::CAJERO | Role::MESERO => false,
         }
+    }
+
+    /// Roles operativos deben operar siempre bajo una sede activa explícita.
+    pub fn requires_explicit_branch(&self) -> bool {
+        matches!(self.role, Role::BRANCH_MANAGER | Role::CAJERO | Role::MESERO)
     }
 }

@@ -5,9 +5,10 @@ use axum::{
     http::{header::AUTHORIZATION, request::Parts, StatusCode},
 };
 use async_trait::async_trait;
+use uuid::Uuid;
 
 use crate::{
-    domain::auth::User,
+    domain::auth::{Role, User},
     infrastructure::services::jwt_service::JwtService,
     AppState,
 };
@@ -20,6 +21,10 @@ where
     P: AccessPolicy,
 {
     pub user: User,
+    /// Sede resuelta para este request desde el header `X-Branch-ID`, validada contra
+    /// `user.branch_ids`. `None` = el usuario opera sin restringirse a una sede (solo
+    /// permitido para roles administrativos con acceso a todas las sedes del tenant).
+    pub branch: Option<Uuid>,
     _policy: PhantomData<P>,
 }
 
@@ -78,13 +83,60 @@ where
             return Err((StatusCode::FORBIDDEN, "insufficient privileges"));
         }
 
-        let user = match app_state.auth_use_cases.claims_to_user(&claims) {
+        let mut user = match app_state.auth_use_cases.claims_to_user(&claims) {
             Ok(value) => value,
             Err(_) => return Err((StatusCode::UNAUTHORIZED, "invalid token claims")),
         };
 
+        // "Modo plataforma": SOLO SUPER_ADMIN puede operar sobre un tenant distinto al suyo,
+        // de forma expl\u00edcita v\u00eda header (nunca impl\u00edcito), y solo si ese tenant existe.
+        // El rol viene firmado en el JWT, por lo que un cliente no puede escalar privilegios
+        // enviando este header con otro rol.
+        if user.role == Role::SUPER_ADMIN {
+            if let Some(override_tenant_id) = parts
+                .headers
+                .get("x-tenant-override")
+                .and_then(|value| value.to_str().ok())
+                .and_then(|value| Uuid::parse_str(value).ok())
+            {
+                let exists: bool = sqlx::query_scalar("SELECT EXISTS (SELECT 1 FROM tenants WHERE id = $1)")
+                    .bind(override_tenant_id)
+                    .fetch_one(&app_state.pool)
+                    .await
+                    .unwrap_or(false);
+                if !exists {
+                    return Err((StatusCode::NOT_FOUND, "tenant override not found"));
+                }
+                user.tenant_id = override_tenant_id;
+                user.branch_ids = Vec::new();
+            }
+        }
+
+        let requested_branch = parts
+            .headers
+            .get("x-branch-id")
+            .and_then(|value| value.to_str().ok())
+            .and_then(|value| Uuid::parse_str(value).ok());
+
+        let branch = match requested_branch {
+            Some(branch_id) => {
+                if user.branch_ids.is_empty() || user.branch_ids.contains(&branch_id) {
+                    Some(branch_id)
+                } else {
+                    return Err((StatusCode::FORBIDDEN, "branch not accessible"));
+                }
+            }
+            None if user.branch_ids.len() == 1 => Some(user.branch_ids[0]),
+            None => None,
+        };
+
+        if branch.is_none() && matches!(user.role, Role::BRANCH_MANAGER | Role::CAJERO | Role::MESERO) {
+            return Err((StatusCode::BAD_REQUEST, "x-branch-id header is required for this role"));
+        }
+
         Ok(Self {
             user,
+            branch,
             _policy: PhantomData,
         })
     }
@@ -126,7 +178,7 @@ mod tests {
 
     #[async_trait::async_trait]
     impl MenuRepository for EmptyMenuRepo {
-        async fn list_menu(&self, _tenant_id: Uuid) -> Result<Vec<crate::domain::menu::Category>, anyhow::Error> {
+        async fn list_menu(&self, _tenant_id: Uuid, _branch: Option<Uuid>) -> Result<Vec<crate::domain::menu::Category>, anyhow::Error> {
             Ok(Vec::new())
         }
         async fn list_products(&self, _tenant_id: Uuid) -> Result<Vec<crate::domain::menu::Product>, anyhow::Error> { Ok(Vec::new()) }
@@ -137,6 +189,7 @@ mod tests {
         async fn create_category(&self, _tenant_id: Uuid, _name: &str, _description: Option<&str>, _image_url: Option<&str>, _display_order: i32) -> Result<crate::domain::menu::Category, anyhow::Error> { unreachable!() }
         async fn update_category(&self, _tenant_id: Uuid, _category_id: Uuid, _name: &str, _description: Option<&str>, _image_url: Option<&str>, _display_order: i32) -> Result<Option<crate::domain::menu::Category>, anyhow::Error> { unreachable!() }
         async fn deactivate_category(&self, _tenant_id: Uuid, _category_id: Uuid) -> Result<bool, anyhow::Error> { unreachable!() }
+        async fn upsert_branch_override(&self, _tenant_id: Uuid, _location_id: Uuid, _product_id: Uuid, _price: Option<f64>, _stock: Option<i32>, _is_available: bool) -> Result<(), anyhow::Error> { unreachable!() }
     }
 
     #[async_trait::async_trait]
@@ -155,6 +208,7 @@ mod tests {
             Ok(LoginAttemptState { failed_attempts: 1, locked_until: None })
         }
         async fn reset_login_failures(&self, _email: &str) -> Result<(), anyhow::Error> { Ok(()) }
+        async fn assign_branch(&self, _tenant_id: Uuid, _user_id: Uuid, _location_id: Uuid, _is_primary: bool) -> Result<(), anyhow::Error> { Ok(()) }
     }
 
     async fn super_admin_endpoint(_auth: AuthUser<SuperAdminOnly>) -> &'static str {
@@ -219,6 +273,7 @@ mod tests {
             permissions: vec!["manage:tenant_admins".to_string()],
             email: "admin@example.com".to_string(),
             name: "Admin".to_string(),
+            branch_ids: Vec::new(),
             iat: now - 7200,
             exp: now - 3600,
         };
@@ -255,6 +310,7 @@ mod tests {
             email: Email::parse("cashier@example.com").expect("email"),
             password_hash: PasswordHash::new("$argon2id$v=19$m=19456,t=2,p=1$a2V5$YWJj".to_string()).expect("hash"),
             role: Role::CAJERO,
+            branch_ids: Vec::new(),
         };
 
         let token = jwt

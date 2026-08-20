@@ -62,4 +62,11 @@ pub trait UserRepository: Send + Sync {
         lock_minutes: i32,
     ) -> Result<LoginAttemptState, anyhow::Error>;
     async fn reset_login_failures(&self, email: &str) -> Result<(), anyhow::Error>;
+    async fn assign_branch(
+        &self,
+        tenant_id: Uuid,
+        user_id: Uuid,
+        location_id: Uuid,
+        is_primary: bool,
+    ) -> Result<(), anyhow::Error>;
 }
