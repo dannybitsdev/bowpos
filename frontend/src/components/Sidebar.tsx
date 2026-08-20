@@ -2,6 +2,8 @@ import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import { useAuthStore } from '../features/auth/application/authStore';
+import { useBranchContext } from '../features/branch/application/BranchContext';
+import { usePlatformContext } from '../features/platform/application/PlatformContext';
 
 type NavItem = {
   label: string;
@@ -156,7 +158,10 @@ type SidebarProps = {
 export const Sidebar: React.FC<SidebarProps> = ({ open = false, onClose }) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const role = useAuthStore((state) => state.user?.role);
   const tenantName = useAuthStore((state) => state.user?.tenant_name ?? 'Bits TI Tecnología');
+  const { branches, activeBranchId, setActiveBranchId } = useBranchContext();
+  const { tenants, overrideTenantId, setOverrideTenantId } = usePlatformContext();
 
   return (
     <>
@@ -182,12 +187,30 @@ export const Sidebar: React.FC<SidebarProps> = ({ open = false, onClose }) => {
 
       <label className="mb-6 block text-sm text-[var(--color-muted)]">
         <span className="mb-2 block text-[11px] uppercase tracking-[0.3em]">Sedes</span>
-        <select className="w-full rounded-xl border border-[var(--color-border)] bg-[#101010] px-3 py-2.5 text-sm text-[var(--color-text)] outline-none transition focus:border-[var(--color-primary)]">
-          <option>Sede Principal</option>
-          <option>Sede Norte</option>
-          <option>Sede Sur</option>
+        <select
+          value={activeBranchId ?? ''}
+          onChange={(event) => setActiveBranchId(event.target.value || null)}
+          className="w-full rounded-xl border border-[var(--color-border)] bg-[#101010] px-3 py-2.5 text-sm text-[var(--color-text)] outline-none transition focus:border-[var(--color-primary)]"
+        >
+          {branches.length > 1 ? <option value="">Todas las sedes</option> : null}
+          {branches.map((branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}
+          {branches.length === 0 ? <option value="">Sin sedes asignadas</option> : null}
         </select>
       </label>
+
+      {role === 'SUPER_ADMIN' ? (
+        <label className="mb-6 block text-sm text-[var(--color-muted)]">
+          <span className="mb-2 block text-[11px] uppercase tracking-[0.3em] text-[var(--color-primary)]">Modo plataforma · Tenant</span>
+          <select
+            value={overrideTenantId ?? ''}
+            onChange={(event) => setOverrideTenantId(event.target.value || null)}
+            className="w-full rounded-xl border border-[var(--color-border)] bg-[#101010] px-3 py-2.5 text-sm text-[var(--color-text)] outline-none transition focus:border-[var(--color-primary)]"
+          >
+            <option value="">Mi tenant</option>
+            {tenants.map((tenant) => <option key={tenant.id} value={tenant.id}>{tenant.name}</option>)}
+          </select>
+        </label>
+      ) : null}
 
       <nav className="min-h-0 flex-1 space-y-1.5 overflow-y-auto pr-1">
         {navItems.map((item) => {

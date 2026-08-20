@@ -20,9 +20,9 @@ impl MenuService {
         Self { repository }
     }
 
-    pub async fn list_menu(&self, tenant_id: Uuid) -> Result<Vec<Category>, MenuError> {
+    pub async fn list_menu(&self, tenant_id: Uuid, branch: Option<Uuid>) -> Result<Vec<Category>, MenuError> {
         self.repository
-            .list_menu(tenant_id)
+            .list_menu(tenant_id, branch)
             .await
             .map_err(MenuError::Repository)
     }
@@ -66,6 +66,16 @@ impl MenuService {
     pub async fn deactivate_category(&self, tenant_id: Uuid, category_id: Uuid) -> Result<bool, MenuError> {
         self.repository.deactivate_category(tenant_id, category_id).await.map_err(MenuError::Repository)
     }
+
+    pub async fn upsert_branch_override(
+        &self, tenant_id: Uuid, location_id: Uuid, product_id: Uuid,
+        price: Option<f64>, stock: Option<i32>, is_available: bool,
+    ) -> Result<(), MenuError> {
+        if price.is_some_and(|value| value < 0.0) || stock.is_some_and(|value| value < 0) {
+            return Err(MenuError::Repository(anyhow::anyhow!("invalid override values")));
+        }
+        self.repository.upsert_branch_override(tenant_id, location_id, product_id, price, stock, is_available).await.map_err(MenuError::Repository)
+    }
 }
 
 #[cfg(test)]
@@ -82,7 +92,7 @@ mod tests {
 
     #[async_trait]
     impl MenuRepository for MockMenuRepository {
-        async fn list_menu(&self, tenant_id: Uuid) -> Result<Vec<Category>, anyhow::Error> {
+        async fn list_menu(&self, tenant_id: Uuid, _branch: Option<Uuid>) -> Result<Vec<Category>, anyhow::Error> {
             if tenant_id != self.tenant_id {
                 return Ok(Vec::new());
             }
@@ -100,6 +110,7 @@ mod tests {
         async fn create_category(&self, _tenant_id: Uuid, _name: &str, _description: Option<&str>, _image_url: Option<&str>, _display_order: i32) -> Result<Category, anyhow::Error> { unreachable!() }
         async fn update_category(&self, _tenant_id: Uuid, _category_id: Uuid, _name: &str, _description: Option<&str>, _image_url: Option<&str>, _display_order: i32) -> Result<Option<Category>, anyhow::Error> { unreachable!() }
         async fn deactivate_category(&self, _tenant_id: Uuid, _category_id: Uuid) -> Result<bool, anyhow::Error> { unreachable!() }
+        async fn upsert_branch_override(&self, _tenant_id: Uuid, _location_id: Uuid, _product_id: Uuid, _price: Option<f64>, _stock: Option<i32>, _is_available: bool) -> Result<(), anyhow::Error> { unreachable!() }
     }
 
     #[tokio::test]
@@ -126,8 +137,8 @@ mod tests {
             tenant_id,
         }));
 
-        assert_eq!(service.list_menu(tenant_id).await.unwrap().len(), 1);
-        assert!(service.list_menu(Uuid::new_v4()).await.unwrap().is_empty());
+        assert_eq!(service.list_menu(tenant_id, None).await.unwrap().len(), 1);
+        assert!(service.list_menu(Uuid::new_v4(), None).await.unwrap().is_empty());
     }
 
     #[tokio::test]
@@ -145,7 +156,7 @@ mod tests {
             ],
         };
         let service = MenuService::new(Arc::new(MockMenuRepository { categories: vec![category], tenant_id }));
-        let menu = service.list_menu(tenant_id).await.unwrap();
+        let menu = service.list_menu(tenant_id, None).await.unwrap();
 
         assert_eq!(menu[0].products[0].name, "Arepa");
         assert_eq!(menu[0].products[1].name, "Bandeja");

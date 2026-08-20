@@ -45,7 +45,7 @@ pub struct MenuReadAccess;
 
 impl AccessPolicy for MenuReadAccess {
     fn required_roles() -> &'static [Role] {
-        &[Role::SUPER_ADMIN, Role::ADMIN_TENANT, Role::CAJERO, Role::MESERO]
+        &[Role::SUPER_ADMIN, Role::ADMIN_TENANT, Role::BRANCH_MANAGER, Role::CAJERO, Role::MESERO]
     }
 
     fn required_permissions() -> &'static [Permission] {
@@ -65,16 +65,55 @@ impl AccessPolicy for MenuWriteAccess {
     }
 }
 
+/// Un BRANCH_MANAGER solo puede fijar overrides (precio/stock/disponibilidad) de su propia sede.
+pub struct BranchCatalogWriteAccess;
+
+impl AccessPolicy for BranchCatalogWriteAccess {
+    fn required_roles() -> &'static [Role] {
+        &[Role::SUPER_ADMIN, Role::ADMIN_TENANT, Role::BRANCH_MANAGER]
+    }
+
+    fn required_permissions() -> &'static [Permission] {
+        &[Permission::ManageBranchCatalog]
+    }
+}
+
+/// Crear/listar sedes es exclusivo de administración del tenant o superior.
+pub struct LocationWriteAccess;
+
+impl AccessPolicy for LocationWriteAccess {
+    fn required_roles() -> &'static [Role] {
+        &[Role::SUPER_ADMIN, Role::ADMIN_TENANT]
+    }
+
+    fn required_permissions() -> &'static [Permission] {
+        &[Permission::ManageTenantUsers]
+    }
+}
+
+/// Asignar usuarios a sedes: tenant admin o superior.
+pub struct BranchAssignmentAccess;
+
+impl AccessPolicy for BranchAssignmentAccess {
+    fn required_roles() -> &'static [Role] {
+        &[Role::SUPER_ADMIN, Role::ADMIN_TENANT]
+    }
+
+    fn required_permissions() -> &'static [Permission] {
+        &[Permission::ManageTenantUsers]
+    }
+}
+
 pub struct OrderReadAccess;
 
 impl AccessPolicy for OrderReadAccess {
-    fn required_roles() -> &'static [Role] { &[Role::SUPER_ADMIN, Role::ADMIN_TENANT, Role::CAJERO, Role::MESERO] }
+    fn required_roles() -> &'static [Role] { &[Role::SUPER_ADMIN, Role::ADMIN_TENANT, Role::BRANCH_MANAGER, Role::CAJERO, Role::MESERO] }
     fn required_permissions() -> &'static [Permission] { &[Permission::ReadTenantData] }
 }
 
 pub struct OrderWriteAccess;
 
 impl AccessPolicy for OrderWriteAccess {
-    fn required_roles() -> &'static [Role] { &[Role::SUPER_ADMIN, Role::ADMIN_TENANT, Role::CAJERO, Role::MESERO] }
+    fn required_roles() -> &'static [Role] { &[Role::SUPER_ADMIN, Role::ADMIN_TENANT, Role::BRANCH_MANAGER, Role::CAJERO, Role::MESERO] }
     fn required_permissions() -> &'static [Permission] { &[Permission::ReadTenantData] }
 }

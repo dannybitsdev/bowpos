@@ -43,7 +43,7 @@ impl PaymentMethod { pub fn as_str(self) -> &'static str { match self { Self::CA
 
 #[derive(Debug, Clone, Serialize)]
 pub struct Order {
-    pub id: Uuid, pub order_number: i64, pub tenant_id: Uuid, pub tenant_name: String, pub location_name: Option<String>, pub service_type: ServiceType, pub table_name: Option<String>,
+    pub id: Uuid, pub order_number: i64, pub tenant_id: Uuid, pub tenant_name: String, pub location_id: Uuid, pub location_name: Option<String>, pub service_type: ServiceType, pub table_name: Option<String>,
     pub customer_name: Option<String>, pub notes: Option<String>, pub status: OrderStatus,
     pub payment_method: Option<PaymentMethod>, pub subtotal: f64, pub tax: f64, pub tip: f64,
     pub discount: f64, pub total: f64, pub items: Vec<OrderItem>, pub created_at: chrono::DateTime<chrono::Utc>,
@@ -87,13 +87,19 @@ impl Totals {
     }
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub struct BranchSalesSummary { pub location_id: Uuid, pub location_name: String, pub order_count: i64, pub total: f64 }
+
 #[async_trait]
 pub trait OrderRepository: Send + Sync {
-    async fn list_orders(&self, tenant_id: Uuid, status: Option<OrderStatus>) -> Result<Vec<Order>, anyhow::Error>;
+    /// `branch = None` solo debe usarse para roles administrativos que ven todas las sedes del tenant.
+    async fn list_orders(&self, tenant_id: Uuid, branch: Option<Uuid>, status: Option<OrderStatus>) -> Result<Vec<Order>, anyhow::Error>;
     async fn list_catalog(&self, tenant_id: Uuid) -> Result<Vec<OrderCatalogProduct>, anyhow::Error>;
-    async fn create_order(&self, tenant_id: Uuid, user_id: Uuid, order: NewOrder) -> Result<Order, anyhow::Error>;
-    async fn get_order(&self, tenant_id: Uuid, order_id: Uuid) -> Result<Option<Order>, anyhow::Error>;
-    async fn update_status(&self, tenant_id: Uuid, order_id: Uuid, status: OrderStatus) -> Result<Option<Order>, anyhow::Error>;
+    /// Toda orden queda atada a una sede concreta; no hay heur\u00edstica de sede por defecto.
+    async fn create_order(&self, tenant_id: Uuid, branch_id: Uuid, user_id: Uuid, order: NewOrder) -> Result<Order, anyhow::Error>;
+    async fn get_order(&self, tenant_id: Uuid, branch: Option<Uuid>, order_id: Uuid) -> Result<Option<Order>, anyhow::Error>;
+    async fn update_status(&self, tenant_id: Uuid, branch: Option<Uuid>, order_id: Uuid, status: OrderStatus) -> Result<Option<Order>, anyhow::Error>;
+    async fn sales_summary(&self, tenant_id: Uuid, branch: Option<Uuid>) -> Result<Vec<BranchSalesSummary>, anyhow::Error>;
 }
 
 #[cfg(test)]

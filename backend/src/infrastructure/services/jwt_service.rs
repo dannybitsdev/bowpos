@@ -15,6 +15,7 @@ pub struct JwtClaims {
     pub permissions: Vec<String>,
     pub email: String,
     pub name: String,
+    pub branch_ids: Vec<Uuid>,
     pub iat: i64,
     pub exp: i64,
 }
@@ -39,6 +40,7 @@ impl JwtClaims {
                 .collect(),
             email: user.email.as_str().to_string(),
             name: user.name.clone(),
+            branch_ids: user.branch_ids.clone(),
             iat: now.timestamp(),
             exp: expires.timestamp(),
         }

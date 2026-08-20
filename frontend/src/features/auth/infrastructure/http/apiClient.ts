@@ -1,6 +1,8 @@
 import axios from 'axios';
 
 import { useAuthStore } from '../../application/authStore';
+import { useBranchStore } from '../../../branch/application/branchStore';
+import { usePlatformStore } from '../../../platform/application/platformStore';
 
 const runtimeConfig = (globalThis as typeof globalThis & {
   __BOWPOS_CONFIG__?: { apiUrl?: string };
@@ -29,6 +31,18 @@ apiClient.interceptors.request.use((config) => {
 
   if (user?.tenant_id) {
     config.headers['X-Tenant-ID'] = user.tenant_id;
+  }
+
+  const activeBranchId = useBranchStore.getState().activeBranchId;
+  if (activeBranchId) {
+    config.headers['X-Branch-ID'] = activeBranchId;
+  }
+
+  if (user?.role === 'SUPER_ADMIN') {
+    const overrideTenantId = usePlatformStore.getState().overrideTenantId;
+    if (overrideTenantId) {
+      config.headers['X-Tenant-Override'] = overrideTenantId;
+    }
   }
 
   return config;

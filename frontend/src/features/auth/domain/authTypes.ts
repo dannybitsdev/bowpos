@@ -1,4 +1,4 @@
-export type Role = 'SUPER_ADMIN' | 'ADMIN_TENANT' | 'CAJERO' | 'MESERO';
+export type Role = 'SUPER_ADMIN' | 'ADMIN_TENANT' | 'BRANCH_MANAGER' | 'CAJERO' | 'MESERO';
 
 export interface AuthUser {
   user_id: string;
@@ -7,6 +7,7 @@ export interface AuthUser {
   name?: string;
   role: Role;
   permissions: string[];
+  branch_ids?: string[];
 }
 
 export interface LoginResult {

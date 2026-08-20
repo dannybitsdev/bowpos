@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use sqlx::{PgPool, Row};
 use uuid::Uuid;
-use crate::domain::orders::{CatalogOption, ModifierGroup, NewOrder, Order, OrderCatalogProduct, OrderItem, OrderOption, OrderRepository, OrderStatus, PaymentMethod, ServiceType, Totals};
+use crate::domain::orders::{BranchSalesSummary, CatalogOption, ModifierGroup, NewOrder, Order, OrderCatalogProduct, OrderItem, OrderOption, OrderRepository, OrderStatus, PaymentMethod, ServiceType, Totals};
 
 pub struct SqlxOrderRepository { pool: PgPool }
 impl SqlxOrderRepository { pub fn new(pool: PgPool) -> Self { Self { pool } } }
@@ -11,17 +11,24 @@ fn parse_service(value: &str) -> ServiceType { match value { "TAKEAWAY" => Servi
 fn parse_status(value: &str) -> OrderStatus { match value { "IN_PREPARATION" => OrderStatus::IN_PREPARATION, "READY" => OrderStatus::READY, "DELIVERED" => OrderStatus::DELIVERED, "CANCELLED" => OrderStatus::CANCELLED, _ => OrderStatus::CREATED } }
 fn parse_payment(value: Option<String>) -> Option<PaymentMethod> { value.map(|item| match item.as_str() { "CARD" => PaymentMethod::CARD, "TRANSFER" => PaymentMethod::TRANSFER, _ => PaymentMethod::CASH }) }
 fn money(value: String) -> f64 { value.parse().unwrap_or(0.0) }
+fn branch_scope_value(branch: Option<Uuid>) -> String { branch.map(|value| value.to_string()).unwrap_or_else(|| "ALL".to_string()) }
 
 #[async_trait]
 impl OrderRepository for SqlxOrderRepository {
-    async fn list_orders(&self, tenant_id: Uuid, status: Option<OrderStatus>) -> Result<Vec<Order>, anyhow::Error> {
-        let rows = if let Some(status) = status { sqlx::query("SELECT id FROM orders WHERE tenant_id = $1 AND status = $2 ORDER BY created_at DESC").bind(tenant_id).bind(status.as_str()).fetch_all(&self.pool).await? } else { sqlx::query("SELECT id FROM orders WHERE tenant_id = $1 ORDER BY created_at DESC").bind(tenant_id).fetch_all(&self.pool).await? };
+    async fn list_orders(&self, tenant_id: Uuid, branch: Option<Uuid>, status: Option<OrderStatus>) -> Result<Vec<Order>, anyhow::Error> {
+        let mut transaction = self.pool.begin().await?;
+        self.apply_rls_scope(&mut transaction, tenant_id, branch).await?;
+        let rows = sqlx::query("SELECT id FROM orders WHERE tenant_id = $1 AND ($2::uuid IS NULL OR location_id = $2) AND ($3::text IS NULL OR status = $3) ORDER BY created_at DESC")
+            .bind(tenant_id).bind(branch).bind(status.map(OrderStatus::as_str))
+            .fetch_all(&mut *transaction).await?;
+        transaction.commit().await?;
+
         let mut orders = Vec::with_capacity(rows.len());
-        for row in rows { if let Some(order) = self.load_order(tenant_id, row.try_get("id")?).await? { orders.push(order); } }
+        for row in rows { if let Some(order) = self.load_order(tenant_id, branch, row.try_get("id")?).await? { orders.push(order); } }
         Ok(orders)
     }
 
-    async fn get_order(&self, tenant_id: Uuid, order_id: Uuid) -> Result<Option<Order>, anyhow::Error> { self.load_order(tenant_id, order_id).await }
+    async fn get_order(&self, tenant_id: Uuid, branch: Option<Uuid>, order_id: Uuid) -> Result<Option<Order>, anyhow::Error> { self.load_order(tenant_id, branch, order_id).await }
 
     async fn list_catalog(&self, tenant_id: Uuid) -> Result<Vec<OrderCatalogProduct>, anyhow::Error> {
         let products = sqlx::query("SELECT id, name, price::text AS price, image_url FROM products WHERE tenant_id = $1 AND is_active = true ORDER BY name").bind(tenant_id).fetch_all(&self.pool).await?;
@@ -41,11 +48,11 @@ impl OrderRepository for SqlxOrderRepository {
         Ok(catalog)
     }
 
-    async fn create_order(&self, tenant_id: Uuid, user_id: Uuid, input: NewOrder) -> Result<Order, anyhow::Error> {
+    async fn create_order(&self, tenant_id: Uuid, branch_id: Uuid, user_id: Uuid, input: NewOrder) -> Result<Order, anyhow::Error> {
         let mut transaction = self.pool.begin().await?;
-        sqlx::query("SELECT id FROM tenants WHERE id = $1 FOR UPDATE").bind(tenant_id).fetch_one(&mut *transaction).await?;
+        self.apply_rls_scope(&mut transaction, tenant_id, Some(branch_id)).await?;
+        sqlx::query("SELECT id FROM locations WHERE id = $1 AND tenant_id = $2").bind(branch_id).bind(tenant_id).fetch_optional(&mut *transaction).await?.ok_or_else(|| anyhow::anyhow!("branch not found for tenant"))?;
         let order_number: i64 = sqlx::query_scalar("SELECT COALESCE(MAX(order_number), 0) + 1 FROM orders WHERE tenant_id = $1").bind(tenant_id).fetch_one(&mut *transaction).await?;
-        let location_id: Option<Uuid> = sqlx::query_scalar("SELECT COALESCE(u.location_id, (SELECT id FROM locations WHERE tenant_id = $1 ORDER BY name LIMIT 1)) FROM users u WHERE u.id = $2 AND u.tenant_id = $1").bind(tenant_id).bind(user_id).fetch_optional(&mut *transaction).await?.flatten();
         let mut priced_items = Vec::with_capacity(input.items.len());
         for item in &input.items {
             let product = sqlx::query("SELECT name, price::text AS price FROM products WHERE id = $1 AND tenant_id = $2 AND is_active = true").bind(item.product_id).bind(tenant_id).fetch_optional(&mut *transaction).await?.ok_or_else(|| anyhow::anyhow!("product not found"))?;
@@ -60,7 +67,7 @@ impl OrderRepository for SqlxOrderRepository {
         let totals = Totals::calculate(&cents, input.tax_rate, input.tip, input.discount);
         let order_id = Uuid::new_v4();
         sqlx::query("INSERT INTO orders (id, order_number, tenant_id, location_id, user_id, service_type, table_name, customer_name, notes, payment_method, subtotal, tax, tip, discount, total) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)")
-            .bind(order_id).bind(order_number).bind(tenant_id).bind(location_id).bind(user_id).bind(input.service_type.as_str()).bind(&input.table_name).bind(&input.customer_name).bind(&input.notes).bind(input.payment_method.map(|item| item.as_str()))
+            .bind(order_id).bind(order_number).bind(tenant_id).bind(branch_id).bind(user_id).bind(input.service_type.as_str()).bind(&input.table_name).bind(&input.customer_name).bind(&input.notes).bind(input.payment_method.map(|item| item.as_str()))
             .bind(totals.subtotal as f64 / 100.0).bind(totals.tax as f64 / 100.0).bind(totals.tip as f64 / 100.0).bind(totals.discount as f64 / 100.0).bind(totals.total as f64 / 100.0).execute(&mut *transaction).await?;
         for (item, name, unit_price, modifiers, toppings) in priced_items {
             let item_id = Uuid::new_v4();
@@ -73,16 +80,50 @@ impl OrderRepository for SqlxOrderRepository {
             }
         }
         transaction.commit().await?;
-        self.load_order(tenant_id, order_id).await?.ok_or_else(|| anyhow::anyhow!("created order not found"))
+        self.load_order(tenant_id, Some(branch_id), order_id).await?.ok_or_else(|| anyhow::anyhow!("created order not found"))
     }
 
-    async fn update_status(&self, tenant_id: Uuid, order_id: Uuid, status: OrderStatus) -> Result<Option<Order>, anyhow::Error> {
-        sqlx::query("UPDATE orders SET status = $1, updated_at = NOW() WHERE id = $2 AND tenant_id = $3").bind(status.as_str()).bind(order_id).bind(tenant_id).execute(&self.pool).await?;
-        self.load_order(tenant_id, order_id).await
+    async fn update_status(&self, tenant_id: Uuid, branch: Option<Uuid>, order_id: Uuid, status: OrderStatus) -> Result<Option<Order>, anyhow::Error> {
+        let mut transaction = self.pool.begin().await?;
+        self.apply_rls_scope(&mut transaction, tenant_id, branch).await?;
+        sqlx::query("UPDATE orders SET status = $1, updated_at = NOW() WHERE id = $2 AND tenant_id = $3 AND ($4::uuid IS NULL OR location_id = $4)")
+            .bind(status.as_str()).bind(order_id).bind(tenant_id).bind(branch).execute(&mut *transaction).await?;
+        transaction.commit().await?;
+        self.load_order(tenant_id, branch, order_id).await
+    }
+
+    async fn sales_summary(&self, tenant_id: Uuid, branch: Option<Uuid>) -> Result<Vec<BranchSalesSummary>, anyhow::Error> {
+        let mut transaction = self.pool.begin().await?;
+        self.apply_rls_scope(&mut transaction, tenant_id, branch).await?;
+        let rows = sqlx::query(
+            "SELECT l.id AS location_id, l.name AS location_name, COUNT(o.id) AS order_count, COALESCE(SUM(o.total), 0)::text AS total
+             FROM locations l
+             LEFT JOIN orders o ON o.location_id = l.id AND o.tenant_id = l.tenant_id AND o.status <> 'CANCELLED'
+             WHERE l.tenant_id = $1 AND ($2::uuid IS NULL OR l.id = $2)
+             GROUP BY l.id, l.name
+             ORDER BY l.name",
+        )
+        .bind(tenant_id).bind(branch).fetch_all(&mut *transaction).await?;
+        transaction.commit().await?;
+
+        rows.into_iter().map(|row| Ok(BranchSalesSummary {
+            location_id: row.try_get("location_id")?,
+            location_name: row.try_get("location_name")?,
+            order_count: row.try_get("order_count")?,
+            total: money(row.try_get("total")?),
+        })).collect()
     }
 }
 
 impl SqlxOrderRepository {
+    /// Fija las variables de sesión que respaldan las políticas RLS de `orders` (defensa en profundidad).
+    /// El filtrado real de seguridad ocurre en las cláusulas WHERE de cada consulta.
+    async fn apply_rls_scope(&self, transaction: &mut sqlx::Transaction<'_, sqlx::Postgres>, tenant_id: Uuid, branch: Option<Uuid>) -> Result<(), anyhow::Error> {
+        sqlx::query("SELECT set_config('app.tenant_id', $1, true)").bind(tenant_id.to_string()).execute(&mut **transaction).await?;
+        sqlx::query("SELECT set_config('app.branch_scope', $1, true)").bind(branch_scope_value(branch)).execute(&mut **transaction).await?;
+        Ok(())
+    }
+
     async fn load_options_for_transaction(&self, transaction: &mut sqlx::Transaction<'_, sqlx::Postgres>, tenant_id: Uuid, product_id: Uuid, ids: &[Uuid], modifiers: bool) -> Result<Vec<(Uuid, String, f64)>, anyhow::Error> {
         let mut result = Vec::new();
         for id in ids {
@@ -97,9 +138,14 @@ impl SqlxOrderRepository {
         Ok(result)
     }
 
-    async fn load_order(&self, tenant_id: Uuid, order_id: Uuid) -> Result<Option<Order>, anyhow::Error> {
-        let row = sqlx::query("SELECT o.id, o.order_number, o.service_type, o.table_name, o.customer_name, o.notes, o.status, o.payment_method, o.subtotal::text AS subtotal, o.tax::text AS tax, o.tip::text AS tip, o.discount::text AS discount, o.total::text AS total, o.created_at, t.name AS tenant_name, l.name AS location_name FROM orders o JOIN tenants t ON t.id = o.tenant_id LEFT JOIN locations l ON l.id = o.location_id AND l.tenant_id = o.tenant_id WHERE o.id = $1 AND o.tenant_id = $2").bind(order_id).bind(tenant_id).fetch_optional(&self.pool).await?;
+    async fn load_order(&self, tenant_id: Uuid, branch: Option<Uuid>, order_id: Uuid) -> Result<Option<Order>, anyhow::Error> {
+        let mut transaction = self.pool.begin().await?;
+        self.apply_rls_scope(&mut transaction, tenant_id, branch).await?;
+        let row = sqlx::query("SELECT o.id, o.order_number, o.location_id, o.service_type, o.table_name, o.customer_name, o.notes, o.status, o.payment_method, o.subtotal::text AS subtotal, o.tax::text AS tax, o.tip::text AS tip, o.discount::text AS discount, o.total::text AS total, o.created_at, t.name AS tenant_name, l.name AS location_name FROM orders o JOIN tenants t ON t.id = o.tenant_id LEFT JOIN locations l ON l.id = o.location_id AND l.tenant_id = o.tenant_id WHERE o.id = $1 AND o.tenant_id = $2 AND ($3::uuid IS NULL OR o.location_id = $3)")
+            .bind(order_id).bind(tenant_id).bind(branch).fetch_optional(&mut *transaction).await?;
+        transaction.commit().await?;
         let Some(row) = row else { return Ok(None); };
+
         let item_rows = sqlx::query("SELECT id, product_id, product_name, quantity, unit_price::text AS unit_price, notes, subtotal::text AS subtotal FROM order_items WHERE order_id = $1 AND tenant_id = $2 ORDER BY product_name").bind(order_id).bind(tenant_id).fetch_all(&self.pool).await?;
         let mut items = Vec::new();
         for item in item_rows {
@@ -108,7 +154,7 @@ impl SqlxOrderRepository {
             let toppings = self.load_item_options(item_id, tenant_id, "order_item_toppings").await?;
             items.push(OrderItem { id: item_id, product_id: item.try_get("product_id")?, product_name: item.try_get("product_name")?, quantity: item.try_get("quantity")?, unit_price: money(item.try_get("unit_price")?), notes: item.try_get("notes")?, subtotal: money(item.try_get("subtotal")?), modifiers, toppings });
         }
-        Ok(Some(Order { id: order_id, order_number: row.try_get("order_number")?, tenant_id, tenant_name: row.try_get("tenant_name")?, location_name: row.try_get("location_name")?, service_type: parse_service(row.try_get("service_type")?), table_name: row.try_get("table_name")?, customer_name: row.try_get("customer_name")?, notes: row.try_get("notes")?, status: parse_status(row.try_get("status")?), payment_method: parse_payment(row.try_get("payment_method")?), subtotal: money(row.try_get("subtotal")?), tax: money(row.try_get("tax")?), tip: money(row.try_get("tip")?), discount: money(row.try_get("discount")?), total: money(row.try_get("total")?), items, created_at: row.try_get::<DateTime<Utc>, _>("created_at")? }))
+        Ok(Some(Order { id: order_id, order_number: row.try_get("order_number")?, tenant_id, tenant_name: row.try_get("tenant_name")?, location_id: row.try_get("location_id")?, location_name: row.try_get("location_name")?, service_type: parse_service(row.try_get("service_type")?), table_name: row.try_get("table_name")?, customer_name: row.try_get("customer_name")?, notes: row.try_get("notes")?, status: parse_status(row.try_get("status")?), payment_method: parse_payment(row.try_get("payment_method")?), subtotal: money(row.try_get("subtotal")?), tax: money(row.try_get("tax")?), tip: money(row.try_get("tip")?), discount: money(row.try_get("discount")?), total: money(row.try_get("total")?), items, created_at: row.try_get::<DateTime<Utc>, _>("created_at")? }))
     }
     async fn load_item_options(&self, item_id: Uuid, tenant_id: Uuid, table: &str) -> Result<Vec<OrderOption>, anyhow::Error> {
         let query = format!("SELECT id, name, price::text AS price FROM {table} WHERE order_item_id = $1 AND tenant_id = $2");

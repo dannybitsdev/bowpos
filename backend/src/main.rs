@@ -17,6 +17,7 @@ use handlers::{
     locations::locations_router,
     menu::menu_router,
     orders::orders_router,
+    platform::platform_router,
 };
 use infrastructure::{repositories::{sqlx_orders_repository::SqlxOrderRepository, sqlx_user_repository::SqlxUserRepository}, seeder::seed_initial_super_admin, services::{jwt_service::JwtService, login_rate_limiter::LoginRateLimiter, password_hasher::PasswordHasher, refresh_token_service::RefreshTokenService}};
 use middleware::tenant::tenant_middleware;
@@ -133,6 +134,7 @@ async fn main() {
         .route("/api/dashboard", get(get_dashboard_metrics))
         .route("/api/config/ui", get(get_ui_config))
         .nest("/api", locations_router())
+        .nest("/api", platform_router())
         .nest("/api/v1", menu_router())
         .nest("/api/v1", orders_router())
         .nest("/api/auth", auth_router())
@@ -146,6 +148,8 @@ async fn main() {
                     header::ACCEPT,
                     header::HeaderName::from_static("x-tenant-id"),
                     header::HeaderName::from_static("x-tenant-slug"),
+                    header::HeaderName::from_static("x-branch-id"),
+                    header::HeaderName::from_static("x-tenant-override"),
                 ]),
         )
         .layer(axum_middleware::from_fn(tenant_middleware))

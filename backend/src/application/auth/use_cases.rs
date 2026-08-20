@@ -347,6 +347,7 @@ impl AuthUseCases {
             email,
             password_hash,
             role,
+            branch_ids: claims.branch_ids.clone(),
         })
     }
 }
@@ -482,6 +483,16 @@ mod tests {
         async fn reset_login_failures(&self, _email: &str) -> Result<(), anyhow::Error> {
             Ok(())
         }
+
+        async fn assign_branch(
+            &self,
+            _tenant_id: Uuid,
+            _user_id: Uuid,
+            _location_id: Uuid,
+            _is_primary: bool,
+        ) -> Result<(), anyhow::Error> {
+            Ok(())
+        }
     }
 
     #[tokio::test]
@@ -498,6 +509,7 @@ mod tests {
             )
             .expect("password hash"),
             role: Role::SUPER_ADMIN,
+            branch_ids: Vec::new(),
         };
 
         let repo = Arc::new(MockRepo { user: Some(user) });
@@ -535,6 +547,7 @@ mod tests {
             )
             .expect("password hash"),
             role: Role::SUPER_ADMIN,
+            branch_ids: Vec::new(),
         };
 
         let view = to_view(user);
