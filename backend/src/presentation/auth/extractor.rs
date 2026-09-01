@@ -230,6 +230,15 @@ mod tests {
         async fn update_category(&self, _tenant_id: Uuid, _category_id: Uuid, _name: &str, _description: Option<&str>, _image_url: Option<&str>, _display_order: i32) -> Result<Option<crate::domain::menu::Category>, anyhow::Error> { unreachable!() }
         async fn deactivate_category(&self, _tenant_id: Uuid, _category_id: Uuid) -> Result<bool, anyhow::Error> { unreachable!() }
         async fn upsert_branch_override(&self, _tenant_id: Uuid, _location_id: Uuid, _product_id: Uuid, _price: Option<f64>, _stock: Option<i32>, _is_available: bool) -> Result<(), anyhow::Error> { unreachable!() }
+        async fn list_modifier_groups(&self, _tenant_id: Uuid) -> Result<Vec<crate::domain::menu::ModifierGroup>, anyhow::Error> { Ok(Vec::new()) }
+        async fn create_modifier_group(&self, _tenant_id: Uuid, _name: &str, _required: bool, _min_selections: i32, _max_selections: i32) -> Result<crate::domain::menu::ModifierGroup, anyhow::Error> { unreachable!() }
+        async fn update_modifier_group(&self, _tenant_id: Uuid, _group_id: Uuid, _name: &str, _required: bool, _min_selections: i32, _max_selections: i32) -> Result<Option<crate::domain::menu::ModifierGroup>, anyhow::Error> { unreachable!() }
+        async fn deactivate_modifier_group(&self, _tenant_id: Uuid, _group_id: Uuid) -> Result<bool, anyhow::Error> { unreachable!() }
+        async fn create_modifier(&self, _tenant_id: Uuid, _group_id: Uuid, _name: &str, _price_delta: f64) -> Result<crate::domain::menu::Modifier, anyhow::Error> { unreachable!() }
+        async fn update_modifier(&self, _tenant_id: Uuid, _modifier_id: Uuid, _name: &str, _price_delta: f64, _is_active: bool) -> Result<Option<crate::domain::menu::Modifier>, anyhow::Error> { unreachable!() }
+        async fn delete_modifier(&self, _tenant_id: Uuid, _modifier_id: Uuid) -> Result<bool, anyhow::Error> { unreachable!() }
+        async fn set_product_modifier_groups(&self, _tenant_id: Uuid, _product_id: Uuid, _group_ids: &[Uuid]) -> Result<(), anyhow::Error> { unreachable!() }
+        async fn list_product_modifier_group_ids(&self, _tenant_id: Uuid, _product_id: Uuid) -> Result<Vec<Uuid>, anyhow::Error> { unreachable!() }
     }
 
     #[async_trait::async_trait]

@@ -3,7 +3,7 @@ use std::sync::Arc;
 use thiserror::Error;
 use uuid::Uuid;
 
-use crate::domain::menu::{Category, MenuRepository, Product};
+use crate::domain::menu::{Category, MenuRepository, Modifier, ModifierGroup, Product};
 
 #[derive(Debug, Error)]
 pub enum MenuError {
@@ -76,6 +76,60 @@ impl MenuService {
         }
         self.repository.upsert_branch_override(tenant_id, location_id, product_id, price, stock, is_available).await.map_err(MenuError::Repository)
     }
+
+    pub async fn list_modifier_groups(&self, tenant_id: Uuid) -> Result<Vec<ModifierGroup>, MenuError> {
+        self.repository.list_modifier_groups(tenant_id).await.map_err(MenuError::Repository)
+    }
+
+    pub async fn create_modifier_group(&self, tenant_id: Uuid, name: &str, required: bool, min_selections: i32, max_selections: i32) -> Result<ModifierGroup, MenuError> {
+        validate_selection_bounds(required, min_selections, max_selections)?;
+        self.repository.create_modifier_group(tenant_id, name, required, min_selections, max_selections).await.map_err(MenuError::Repository)
+    }
+
+    pub async fn update_modifier_group(&self, tenant_id: Uuid, group_id: Uuid, name: &str, required: bool, min_selections: i32, max_selections: i32) -> Result<Option<ModifierGroup>, MenuError> {
+        validate_selection_bounds(required, min_selections, max_selections)?;
+        self.repository.update_modifier_group(tenant_id, group_id, name, required, min_selections, max_selections).await.map_err(MenuError::Repository)
+    }
+
+    pub async fn deactivate_modifier_group(&self, tenant_id: Uuid, group_id: Uuid) -> Result<bool, MenuError> {
+        self.repository.deactivate_modifier_group(tenant_id, group_id).await.map_err(MenuError::Repository)
+    }
+
+    pub async fn create_modifier(&self, tenant_id: Uuid, group_id: Uuid, name: &str, price_delta: f64) -> Result<Modifier, MenuError> {
+        if price_delta < 0.0 {
+            return Err(MenuError::Repository(anyhow::anyhow!("price_delta must not be negative")));
+        }
+        self.repository.create_modifier(tenant_id, group_id, name, price_delta).await.map_err(MenuError::Repository)
+    }
+
+    pub async fn update_modifier(&self, tenant_id: Uuid, modifier_id: Uuid, name: &str, price_delta: f64, is_active: bool) -> Result<Option<Modifier>, MenuError> {
+        if price_delta < 0.0 {
+            return Err(MenuError::Repository(anyhow::anyhow!("price_delta must not be negative")));
+        }
+        self.repository.update_modifier(tenant_id, modifier_id, name, price_delta, is_active).await.map_err(MenuError::Repository)
+    }
+
+    pub async fn delete_modifier(&self, tenant_id: Uuid, modifier_id: Uuid) -> Result<bool, MenuError> {
+        self.repository.delete_modifier(tenant_id, modifier_id).await.map_err(MenuError::Repository)
+    }
+
+    pub async fn set_product_modifier_groups(&self, tenant_id: Uuid, product_id: Uuid, group_ids: &[Uuid]) -> Result<(), MenuError> {
+        self.repository.set_product_modifier_groups(tenant_id, product_id, group_ids).await.map_err(MenuError::Repository)
+    }
+
+    pub async fn list_product_modifier_group_ids(&self, tenant_id: Uuid, product_id: Uuid) -> Result<Vec<Uuid>, MenuError> {
+        self.repository.list_product_modifier_group_ids(tenant_id, product_id).await.map_err(MenuError::Repository)
+    }
+}
+
+fn validate_selection_bounds(required: bool, min_selections: i32, max_selections: i32) -> Result<(), MenuError> {
+    if min_selections < 0 || max_selections < min_selections {
+        return Err(MenuError::Repository(anyhow::anyhow!("invalid min/max selections")));
+    }
+    if required && max_selections < 1 {
+        return Err(MenuError::Repository(anyhow::anyhow!("a required group needs at least one selectable modifier")));
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -111,6 +165,15 @@ mod tests {
         async fn update_category(&self, _tenant_id: Uuid, _category_id: Uuid, _name: &str, _description: Option<&str>, _image_url: Option<&str>, _display_order: i32) -> Result<Option<Category>, anyhow::Error> { unreachable!() }
         async fn deactivate_category(&self, _tenant_id: Uuid, _category_id: Uuid) -> Result<bool, anyhow::Error> { unreachable!() }
         async fn upsert_branch_override(&self, _tenant_id: Uuid, _location_id: Uuid, _product_id: Uuid, _price: Option<f64>, _stock: Option<i32>, _is_available: bool) -> Result<(), anyhow::Error> { unreachable!() }
+        async fn list_modifier_groups(&self, _tenant_id: Uuid) -> Result<Vec<crate::domain::menu::ModifierGroup>, anyhow::Error> { unreachable!() }
+        async fn create_modifier_group(&self, _tenant_id: Uuid, _name: &str, _required: bool, _min_selections: i32, _max_selections: i32) -> Result<crate::domain::menu::ModifierGroup, anyhow::Error> { unreachable!() }
+        async fn update_modifier_group(&self, _tenant_id: Uuid, _group_id: Uuid, _name: &str, _required: bool, _min_selections: i32, _max_selections: i32) -> Result<Option<crate::domain::menu::ModifierGroup>, anyhow::Error> { unreachable!() }
+        async fn deactivate_modifier_group(&self, _tenant_id: Uuid, _group_id: Uuid) -> Result<bool, anyhow::Error> { unreachable!() }
+        async fn create_modifier(&self, _tenant_id: Uuid, _group_id: Uuid, _name: &str, _price_delta: f64) -> Result<crate::domain::menu::Modifier, anyhow::Error> { unreachable!() }
+        async fn update_modifier(&self, _tenant_id: Uuid, _modifier_id: Uuid, _name: &str, _price_delta: f64, _is_active: bool) -> Result<Option<crate::domain::menu::Modifier>, anyhow::Error> { unreachable!() }
+        async fn delete_modifier(&self, _tenant_id: Uuid, _modifier_id: Uuid) -> Result<bool, anyhow::Error> { unreachable!() }
+        async fn set_product_modifier_groups(&self, _tenant_id: Uuid, _product_id: Uuid, _group_ids: &[Uuid]) -> Result<(), anyhow::Error> { unreachable!() }
+        async fn list_product_modifier_group_ids(&self, _tenant_id: Uuid, _product_id: Uuid) -> Result<Vec<Uuid>, anyhow::Error> { unreachable!() }
     }
 
     #[tokio::test]

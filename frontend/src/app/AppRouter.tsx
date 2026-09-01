@@ -5,6 +5,7 @@ import { Sidebar } from '../components/Sidebar';
 import { Dashboard } from '../pages/Dashboard';
 import { MenuPage } from '../pages/MenuPage';
 import { CategoryManagementPage } from '../pages/CategoryManagementPage';
+import { ModifierGroupsPage } from '../pages/ModifierGroupsPage';
 import { OrderBuilderPage } from '../pages/OrderBuilderPage';
 import { OrdersPage } from '../pages/OrdersPage';
 import { LoginPage } from '../features/auth/presentation/pages/LoginPage';
@@ -70,6 +71,7 @@ export function AppRouter() {
         <Route path="/dashboard" element={<ProtectedRoute requiredPermissions={['dashboard:read']}><Dashboard /></ProtectedRoute>} />
         <Route path="/menu" element={<ProtectedRoute requiredPermissions={['inventario:read']}><MenuPage /></ProtectedRoute>} />
         <Route path="/categories" element={<ProtectedRoute requiredPermissions={['inventario:admin']}><CategoryManagementPage /></ProtectedRoute>} />
+        <Route path="/modifiers" element={<ProtectedRoute requiredPermissions={['inventario:admin']}><ModifierGroupsPage /></ProtectedRoute>} />
         <Route path="/orders" element={<ProtectedRoute requiredPermissions={['ventas:create', 'ordenes:create']}><OrderBuilderPage /></ProtectedRoute>} />
         <Route path="/orders/history" element={<ProtectedRoute requiredPermissions={['ordenes:read']}><OrdersPage /></ProtectedRoute>} />
       </Route>
