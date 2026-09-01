@@ -62,16 +62,16 @@ export function AppRouter() {
       <Route path="/unauthorized" element={<UnauthorizedPage />} />
       <Route
         element={
-          <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN_TENANT', 'BRANCH_MANAGER', 'CAJERO', 'MESERO']}>
+          <ProtectedRoute requiredPermissions={['dashboard:read']}>
             <DashboardLayout />
           </ProtectedRoute>
         }
       >
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/menu" element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN_TENANT', 'BRANCH_MANAGER']}><MenuPage /></ProtectedRoute>} />
-        <Route path="/categories" element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN_TENANT', 'BRANCH_MANAGER']}><CategoryManagementPage /></ProtectedRoute>} />
-        <Route path="/orders" element={<OrderBuilderPage />} />
-        <Route path="/orders/history" element={<OrdersPage />} />
+        <Route path="/dashboard" element={<ProtectedRoute requiredPermissions={['dashboard:read']}><Dashboard /></ProtectedRoute>} />
+        <Route path="/menu" element={<ProtectedRoute requiredPermissions={['inventario:read']}><MenuPage /></ProtectedRoute>} />
+        <Route path="/categories" element={<ProtectedRoute requiredPermissions={['inventario:admin']}><CategoryManagementPage /></ProtectedRoute>} />
+        <Route path="/orders" element={<ProtectedRoute requiredPermissions={['ventas:create', 'ordenes:create']}><OrderBuilderPage /></ProtectedRoute>} />
+        <Route path="/orders/history" element={<ProtectedRoute requiredPermissions={['ordenes:read']}><OrdersPage /></ProtectedRoute>} />
       </Route>
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>

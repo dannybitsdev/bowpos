@@ -4,28 +4,21 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../features/auth/application/authStore';
 import { useBranchContext } from '../features/branch/application/BranchContext';
 import { usePlatformContext } from '../features/platform/application/PlatformContext';
+import type { Permission } from '../features/auth/domain/authTypes';
 
 type NavItem = {
   label: string;
-  active?: boolean;
+  path: string;
+  requiredPermissions: Permission[];
   icon: React.ReactNode;
 };
 
 const navItems: NavItem[] = [
-  { label: 'Dashboard', active: true, icon: <DashboardIcon /> },
-  { label: 'Ventas', icon: <SalesIcon /> },
-  { label: 'Órdenes', icon: <OrdersIcon /> },
-  { label: 'Menú', icon: <MenuIcon /> },
-  { label: 'Categorías', icon: <CategoriesIcon /> },
-  { label: 'Inventarios', icon: <InventoryIcon /> },
-  { label: 'Pagos', icon: <PaymentsIcon /> },
-  { label: 'Facturas', icon: <InvoiceIcon /> },
-  { label: 'Clientes', icon: <ClientsIcon /> },
-  { label: 'Empleados', icon: <UsersIcon /> },
-  { label: 'Cumplimiento Legal', icon: <ComplianceIcon /> },
-  { label: 'Marketing con IA', icon: <MarketingIcon /> },
-  { label: 'Reportes', icon: <ReportsIcon /> },
-  { label: 'Configuración', icon: <SettingsIcon /> },
+  { label: 'Dashboard', path: '/dashboard', requiredPermissions: ['dashboard:read'], icon: <DashboardIcon /> },
+  { label: 'Ventas', path: '/orders', requiredPermissions: ['ventas:create'], icon: <SalesIcon /> },
+  { label: 'Órdenes', path: '/orders/history', requiredPermissions: ['ordenes:read'], icon: <OrdersIcon /> },
+  { label: 'Menú', path: '/menu', requiredPermissions: ['inventario:read'], icon: <MenuIcon /> },
+  { label: 'Categorías', path: '/categories', requiredPermissions: ['inventario:admin'], icon: <CategoriesIcon /> },
 ];
 
 function DashboardIcon() {
@@ -72,84 +65,6 @@ function CategoriesIcon() {
   );
 }
 
-function InventoryIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8">
-      <path d="M5 7.5 12 4l7 3.5v9L12 20l-7-3.5z" />
-      <path d="M12 8v8" />
-    </svg>
-  );
-}
-
-function PaymentsIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8">
-      <rect x="3" y="6" width="18" height="12" rx="2" />
-      <path d="M3 10h18" />
-    </svg>
-  );
-}
-
-function InvoiceIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8">
-      <path d="M7 3h8l4 4v14H7z" />
-      <path d="M15 3v5h5" />
-    </svg>
-  );
-}
-
-function ClientsIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8">
-      <path d="M8 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm8 0a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm-8 2c-2.5 0-4.5 1.6-4.5 3.5V18h9v-1.5C12.5 14.6 10.5 13 8 13Zm8 0c-1.7 0-3.2 1-3.9 2.4" />
-    </svg>
-  );
-}
-
-function UsersIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8">
-      <path d="M16 19a4 4 0 0 0-8 0M12 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />
-      <path d="M19 19a3 3 0 0 0-2.3-2.9M5 16.1A3 3 0 0 1 7.3 16" />
-    </svg>
-  );
-}
-
-function ComplianceIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8">
-      <path d="m5 12 4 4 10-10" />
-    </svg>
-  );
-}
-
-function MarketingIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8">
-      <path d="M4 19h16M7 15l2.5-4 3 2 4.5-6" />
-    </svg>
-  );
-}
-
-function ReportsIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8">
-      <path d="M6 4h10l2 2v14H6z" />
-      <path d="M9 11h6M9 15h4" />
-    </svg>
-  );
-}
-
-function SettingsIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8">
-      <circle cx="12" cy="12" r="3" />
-      <path d="M19 12a7 7 0 0 0-.1-1.1l2.1-1.6-2-3.5-2.6 1a7.4 7.4 0 0 0-1.9-1.1L14.4 2h-4.8l-.8 2.8a7.4 7.4 0 0 0-1.9 1.1l-2.6-1-2 3.5 2.1 1.6A7 7 0 0 0 5 12c0 .4 0 .7.1 1.1L3 14.7l2 3.5 2.6-1a7.4 7.4 0 0 0 1.9 1.1l.8 2.8h4.8l.8-2.8a7.4 7.4 0 0 0 1.9-1.1l2.6 1 2-3.5-2.1-1.6c.1-.4.1-.8.1-1.1Z" />
-    </svg>
-  );
-}
-
 type SidebarProps = {
   open?: boolean;
   onClose?: () => void;
@@ -158,8 +73,10 @@ type SidebarProps = {
 export const Sidebar: React.FC<SidebarProps> = ({ open = false, onClose }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const role = useAuthStore((state) => state.user?.role);
-  const tenantName = useAuthStore((state) => state.user?.tenant_name ?? 'Bits TI Tecnología');
+  const user = useAuthStore((state) => state.user);
+  const role = user?.role;
+  const permissions = user?.permissions ?? [];
+  const tenantName = user?.tenant_name ?? 'Bits TI Tecnología';
   const { branches, activeBranchId, setActiveBranchId } = useBranchContext();
   const { tenants, overrideTenantId, setOverrideTenantId } = usePlatformContext();
 
@@ -213,21 +130,17 @@ export const Sidebar: React.FC<SidebarProps> = ({ open = false, onClose }) => {
       ) : null}
 
       <nav className="min-h-0 flex-1 space-y-1.5 overflow-y-auto pr-1">
-        {navItems.map((item) => {
-          const isMenu = item.label === 'Menú';
-          const isCategories = item.label === 'Categorías';
-          const isOrders = item.label === 'Órdenes';
-          const isActive = isMenu ? location.pathname === '/menu' : isCategories ? location.pathname === '/categories' : isOrders ? location.pathname.startsWith('/orders') : item.label === 'Dashboard' ? location.pathname === '/dashboard' : false;
+        {navItems.filter((item) => item.requiredPermissions.every((permission) => permissions.includes(permission))).map((item) => {
+          const isActive = item.path === '/orders/history'
+            ? location.pathname === '/orders/history'
+            : location.pathname === item.path;
 
           return (
           <button
             key={item.label}
             type="button"
             onClick={() => {
-              if (isMenu) navigate('/menu');
-              else if (isCategories) navigate('/categories');
-              else if (isOrders) navigate('/orders/history');
-              else if (item.label === 'Dashboard') navigate('/dashboard');
+              navigate(item.path);
               onClose?.();
             }}
             className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition ${

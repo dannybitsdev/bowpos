@@ -12,6 +12,7 @@ pub enum Role {
     BRANCH_MANAGER,
     CAJERO,
     MESERO,
+    COCINERO,
 }
 
 impl Role {
@@ -22,6 +23,7 @@ impl Role {
             Role::BRANCH_MANAGER => "BRANCH_MANAGER",
             Role::CAJERO => "CAJERO",
             Role::MESERO => "MESERO",
+            Role::COCINERO => "COCINERO",
         }
     }
 
@@ -32,68 +34,122 @@ impl Role {
             "BRANCH_MANAGER" => Some(Role::BRANCH_MANAGER),
             "CAJERO" => Some(Role::CAJERO),
             "MESERO" => Some(Role::MESERO),
+            "COCINERO" => Some(Role::COCINERO),
             _ => None,
         }
     }
 
     pub fn permissions(self) -> Vec<Permission> {
         match self {
-            Role::SUPER_ADMIN => vec![
-                Permission::ManageGlobalAdmins,
-                Permission::ManageTenantAdmins,
-                Permission::ManageTenantUsers,
-                Permission::ReadTenantData,
-            ],
-            Role::ADMIN_TENANT => vec![Permission::ManageTenantUsers, Permission::ReadTenantData],
+            Role::SUPER_ADMIN | Role::ADMIN_TENANT => Permission::all().to_vec(),
             Role::BRANCH_MANAGER => vec![
-                Permission::ManageBranchUsers,
-                Permission::ManageBranchCatalog,
-                Permission::ProcessPayments,
-                Permission::CreateOrders,
-                Permission::ReadTenantData,
+                Permission::DashboardRead,
+                Permission::SalesRead,
+                Permission::SalesCreate,
+                Permission::SalesCancel,
+                Permission::OrdersRead,
+                Permission::OrdersCreate,
+                Permission::OrdersUpdate,
+                Permission::InventoryRead,
+                Permission::InventoryUpdate,
+                Permission::ConfigRead,
+                Permission::UsersRead,
             ],
-            Role::CAJERO => vec![Permission::ProcessPayments, Permission::ReadTenantData],
-            Role::MESERO => vec![Permission::CreateOrders, Permission::ReadTenantData],
+            Role::CAJERO => vec![
+                Permission::DashboardRead,
+                Permission::SalesRead,
+                Permission::SalesCreate,
+                Permission::OrdersRead,
+                Permission::OrdersCreate,
+            ],
+            Role::MESERO => vec![
+                Permission::DashboardRead,
+                Permission::OrdersRead,
+                Permission::OrdersCreate,
+                Permission::OrdersUpdate,
+            ],
+            Role::COCINERO => vec![Permission::DashboardRead, Permission::OrdersRead, Permission::OrdersUpdate],
         }
     }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Permission {
-    ManageGlobalAdmins,
-    ManageTenantAdmins,
-    ManageTenantUsers,
-    ReadTenantData,
-    ProcessPayments,
-    CreateOrders,
-    ManageBranchUsers,
-    ManageBranchCatalog,
+    DashboardRead,
+    SalesRead,
+    SalesCreate,
+    SalesCancel,
+    OrdersRead,
+    OrdersCreate,
+    OrdersUpdate,
+    InventoryRead,
+    InventoryUpdate,
+    InventoryAdmin,
+    ConfigRead,
+    ConfigUpdate,
+    ConfigLocations,
+    UsersRead,
+    UsersCreate,
+    UsersDelete,
+    LegalRead,
+    LegalUpdate,
 }
 
 impl Permission {
+    pub const fn all() -> &'static [Permission] {
+        &[
+            Permission::DashboardRead, Permission::SalesRead, Permission::SalesCreate,
+            Permission::SalesCancel, Permission::OrdersRead, Permission::OrdersCreate,
+            Permission::OrdersUpdate, Permission::InventoryRead, Permission::InventoryUpdate,
+            Permission::InventoryAdmin, Permission::ConfigRead, Permission::ConfigUpdate,
+            Permission::ConfigLocations, Permission::UsersRead, Permission::UsersCreate,
+            Permission::UsersDelete, Permission::LegalRead, Permission::LegalUpdate,
+        ]
+    }
+
     pub fn as_str(self) -> &'static str {
         match self {
-            Permission::ManageGlobalAdmins => "manage:global_admins",
-            Permission::ManageTenantAdmins => "manage:tenant_admins",
-            Permission::ManageTenantUsers => "manage:tenant_users",
-            Permission::ReadTenantData => "read:tenant_data",
-            Permission::ProcessPayments => "process:payments",
-            Permission::CreateOrders => "create:orders",
-            Permission::ManageBranchUsers => "manage:branch_users",
-            Permission::ManageBranchCatalog => "manage:branch_catalog",
+            Permission::DashboardRead => "dashboard:read",
+            Permission::SalesRead => "ventas:read",
+            Permission::SalesCreate => "ventas:create",
+            Permission::SalesCancel => "ventas:cancel",
+            Permission::OrdersRead => "ordenes:read",
+            Permission::OrdersCreate => "ordenes:create",
+            Permission::OrdersUpdate => "ordenes:update",
+            Permission::InventoryRead => "inventario:read",
+            Permission::InventoryUpdate => "inventario:update",
+            Permission::InventoryAdmin => "inventario:admin",
+            Permission::ConfigRead => "config:read",
+            Permission::ConfigUpdate => "config:update",
+            Permission::ConfigLocations => "config:sedes",
+            Permission::UsersRead => "usuarios:read",
+            Permission::UsersCreate => "usuarios:create",
+            Permission::UsersDelete => "usuarios:delete",
+            Permission::LegalRead => "legal:read",
+            Permission::LegalUpdate => "legal:update",
         }
     }
 
     pub fn from_str(value: &str) -> Option<Self> {
         match value {
-            "manage:global_admins" => Some(Permission::ManageGlobalAdmins),
-            "manage:tenant_admins" => Some(Permission::ManageTenantAdmins),
-            "manage:tenant_users" => Some(Permission::ManageTenantUsers),
-            "read:tenant_data" => Some(Permission::ReadTenantData),
-            "process:payments" => Some(Permission::ProcessPayments),
-            "create:orders" => Some(Permission::CreateOrders),
-            "manage:branch_users" => Some(Permission::ManageBranchUsers),
-            "manage:branch_catalog" => Some(Permission::ManageBranchCatalog),
+            "dashboard:read" => Some(Permission::DashboardRead),
+            "ventas:read" => Some(Permission::SalesRead),
+            "ventas:create" => Some(Permission::SalesCreate),
+            "ventas:cancel" => Some(Permission::SalesCancel),
+            "ordenes:read" => Some(Permission::OrdersRead),
+            "ordenes:create" => Some(Permission::OrdersCreate),
+            "ordenes:update" => Some(Permission::OrdersUpdate),
+            "inventario:read" => Some(Permission::InventoryRead),
+            "inventario:update" => Some(Permission::InventoryUpdate),
+            "inventario:admin" => Some(Permission::InventoryAdmin),
+            "config:read" => Some(Permission::ConfigRead),
+            "config:update" => Some(Permission::ConfigUpdate),
+            "config:sedes" => Some(Permission::ConfigLocations),
+            "usuarios:read" => Some(Permission::UsersRead),
+            "usuarios:create" => Some(Permission::UsersCreate),
+            "usuarios:delete" => Some(Permission::UsersDelete),
+            "legal:read" => Some(Permission::LegalRead),
+            "legal:update" => Some(Permission::LegalUpdate),
             _ => None,
         }
     }
@@ -131,12 +187,30 @@ impl User {
                 self.tenant_id == target_tenant_id
                     && matches!(target_role, Role::CAJERO | Role::MESERO)
             }
-            Role::CAJERO | Role::MESERO => false,
+            Role::CAJERO | Role::MESERO | Role::COCINERO => false,
         }
     }
 
     /// Roles operativos deben operar siempre bajo una sede activa explícita.
     pub fn requires_explicit_branch(&self) -> bool {
-        matches!(self.role, Role::BRANCH_MANAGER | Role::CAJERO | Role::MESERO)
+        matches!(self.role, Role::BRANCH_MANAGER | Role::CAJERO | Role::MESERO | Role::COCINERO)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Permission, Role};
+
+    #[test]
+    fn cashier_cannot_cancel_sales_or_manage_inventory() {
+        let permissions = Role::CAJERO.permissions();
+        assert!(permissions.contains(&Permission::SalesCreate));
+        assert!(!permissions.contains(&Permission::SalesCancel));
+        assert!(!permissions.contains(&Permission::InventoryAdmin));
+    }
+
+    #[test]
+    fn super_admin_has_every_permission() {
+        assert_eq!(Role::SUPER_ADMIN.permissions(), Permission::all());
     }
 }
