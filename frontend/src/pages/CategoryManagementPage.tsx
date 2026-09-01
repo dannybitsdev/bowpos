@@ -5,6 +5,7 @@ import { CategoryFormModal } from '../components/CategoryFormModal';
 import { ProductAssignModal } from '../components/ProductAssignModal';
 import { useCategories } from '../hooks/useCategories';
 import apiClient from '../features/auth/infrastructure/http/apiClient';
+import { useConfirmationModal } from '../features/modal/presentation/useConfirmationModal';
 import type { CategoryPayload, MenuCategory, Product } from './menuTypes';
 
 export function CategoryManagementPage() {
@@ -14,6 +15,7 @@ export function CategoryManagementPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [assignOpen, setAssignOpen] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const { confirm } = useConfirmationModal();
 
   async function loadProducts() {
     const response = await apiClient.get<Product[]>('/v1/menu/products');
@@ -34,7 +36,14 @@ export function CategoryManagementPage() {
   }
 
   async function confirmDeactivate(category: MenuCategory) {
-    if (!window.confirm(`¿Desactivar la categoría "${category.name}"?`)) return;
+    const confirmed = await confirm({
+      title: 'Desactivar categoría',
+      description: `¿Deseas desactivar la categoría "${category.name}"? Dejará de mostrarse en el menú.`,
+      confirmLabel: 'Desactivar',
+      cancelLabel: 'Cancelar',
+      variant: 'warning',
+    });
+    if (!confirmed) return;
     try { await deactivateCategory(category.id); } catch { setActionError('No fue posible desactivar la categoría.'); }
   }
 
@@ -49,7 +58,14 @@ export function CategoryManagementPage() {
   }
 
   async function deleteProduct(product: Product) {
-    if (!window.confirm(`¿Eliminar "${product.name}" del menú?`)) return;
+    const confirmed = await confirm({
+      title: 'Eliminar producto',
+      description: `¿Deseas eliminar "${product.name}" del menú? Esta acción no se puede deshacer.`,
+      confirmLabel: 'Eliminar',
+      cancelLabel: 'Cancelar',
+      variant: 'destructive',
+    });
+    if (!confirmed) return;
     setActionError(null);
     try {
       await apiClient.delete(`/v1/menu/products/${product.id}`);

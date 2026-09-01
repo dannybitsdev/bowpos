@@ -6,6 +6,7 @@ import { useBranchContext } from '../features/branch/application/BranchContext';
 import { usePlatformContext } from '../features/platform/application/PlatformContext';
 import type { Permission } from '../features/auth/domain/authTypes';
 import { useAuth } from '../features/auth/application/useAuth';
+import { useConfirmationModal } from '../features/modal/presentation/useConfirmationModal';
 
 type NavItem = {
   label: string;
@@ -81,6 +82,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ open = false, onClose }) => {
   const { branches, activeBranchId, setActiveBranchId } = useBranchContext();
   const { tenants, overrideTenantId, setOverrideTenantId } = usePlatformContext();
   const { logout } = useAuth();
+  const { confirm } = useConfirmationModal();
   const activeBranchName = branches.find((branch) => branch.id === activeBranchId)?.name ?? 'Todas las sedes';
   const roleLabel = roleLabels[role ?? 'CAJERO'];
   const initials = (user?.name ?? tenantName)
@@ -91,8 +93,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ open = false, onClose }) => {
     .join('')
     .toUpperCase();
 
-  const handleLogout = () => {
-    if (window.confirm('¿Deseas cerrar la sesión actual?')) {
+  const handleLogout = async () => {
+    const confirmed = await confirm({
+      title: 'Cerrar sesión',
+      description: 'Deberás iniciar sesión nuevamente para continuar operando en el sistema.',
+      confirmLabel: 'Cerrar sesión',
+      cancelLabel: 'Cancelar',
+      variant: 'warning',
+    });
+    if (confirmed) {
       void logout();
     }
   };
@@ -181,7 +190,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ open = false, onClose }) => {
             <p className="truncate text-sm font-semibold text-[var(--color-text)]">{user?.name ?? 'Usuario'}</p>
             <p className="truncate text-xs text-[var(--color-muted)]">{roleLabel} · {activeBranchName}</p>
           </div>
-          <button type="button" onClick={handleLogout} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[var(--color-border)] text-[var(--color-muted)] transition hover:border-red-400 hover:text-red-300" aria-label="Cerrar sesión" title="Cerrar sesión">
+          <button type="button" onClick={() => void handleLogout()} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[var(--color-border)] text-[var(--color-muted)] transition hover:border-red-400 hover:text-red-300" aria-label="Cerrar sesión" title="Cerrar sesión">
             <span aria-hidden="true">↪</span>
           </button>
         </div>
