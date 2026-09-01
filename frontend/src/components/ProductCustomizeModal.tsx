@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { CatalogProduct, OrderDraftItem } from '../pages/orderTypes';
+import { calculateUnitPrice } from '../pages/orderUtils';
 
 type Props = { product: CatalogProduct; initialItem?: OrderDraftItem; onClose: () => void; onSave: (item: OrderDraftItem) => void };
 const currency = (value: number) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(value);
@@ -10,8 +11,7 @@ export function ProductCustomizeModal({ product, initialItem, onClose, onSave }:
   const [quantity, setQuantity] = useState(initialItem?.quantity ?? 1);
   const [notes, setNotes] = useState(initialItem?.notes ?? '');
   const [error, setError] = useState<string | null>(null);
-  const selectedOptions = useMemo(() => [...product.modifier_groups.flatMap((group) => group.modifiers), ...product.toppings].filter((option) => modifierIds.includes(option.id) || toppingIds.includes(option.id)), [modifierIds, toppingIds, product]);
-  const unitPrice = product.price + selectedOptions.reduce((sum, option) => sum + option.price, 0);
+  const unitPrice = useMemo(() => calculateUnitPrice(product, modifierIds, toppingIds), [product, modifierIds, toppingIds]);
 
   function chooseModifier(groupId: string, optionId: string) {
     const group = product.modifier_groups.find((item) => item.id === groupId);

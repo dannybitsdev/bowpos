@@ -11,7 +11,7 @@ const PRODUCTS_PER_PAGE = 24;
 
 function MenuSkeleton() {
   return (
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+    <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
       {[1, 2, 3, 4, 5, 6].map((item) => <div key={item} className="h-72 animate-pulse rounded-2xl border border-[var(--color-border)] bg-[var(--color-card-bg)]" />)}
     </div>
   );
@@ -182,7 +182,7 @@ export function MenuPage() {
                 <div className="min-w-0"><h2 id={`category-${category.id}`} className="break-words text-xl font-semibold text-white">{category.name}</h2>{category.description ? <p className="mt-1 text-sm text-[var(--color-muted)]">{category.description}</p> : null}</div>
                 <span className="shrink-0 text-xs text-[var(--color-muted)]">{category.products.length} productos</span>
               </div>
-              {category.products.length ? <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{category.products.map((product) => <div key={product.id} className="relative"><ProductCard product={product} /><div className="absolute right-3 top-3 flex gap-2"><button type="button" onClick={() => openEdit(product)} className="rounded-lg border border-white/20 bg-black/75 px-2.5 py-1.5 text-xs font-medium text-white backdrop-blur transition hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]">Editar</button><button type="button" onClick={() => deleteProduct(product)} disabled={deletingProductId === product.id} className="rounded-lg border border-rose-400/40 bg-black/75 px-2.5 py-1.5 text-xs font-medium text-rose-200 backdrop-blur transition hover:border-rose-300 hover:text-white disabled:opacity-50" aria-label={`Eliminar ${product.name}`}>{deletingProductId === product.id ? 'Eliminando...' : 'Eliminar'}</button></div></div>)}</div> : <p className="text-sm text-[var(--color-muted)]">No hay productos activos en esta categoría.</p>}
+              {category.products.length ? <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">{category.products.map((product) => <div key={product.id} className="relative"><ProductCard product={product} /><div className="absolute right-3 top-3 flex gap-2"><button type="button" onClick={() => openEdit(product)} className="rounded-lg border border-white/20 bg-black/75 px-2.5 py-1.5 text-xs font-medium text-white backdrop-blur transition hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]">Editar</button><button type="button" onClick={() => deleteProduct(product)} disabled={deletingProductId === product.id} className="rounded-lg border border-rose-400/40 bg-black/75 px-2.5 py-1.5 text-xs font-medium text-rose-200 backdrop-blur transition hover:border-rose-300 hover:text-white disabled:opacity-50" aria-label={`Eliminar ${product.name}`}>{deletingProductId === product.id ? 'Eliminando...' : 'Eliminar'}</button></div></div>)}</div> : <p className="text-sm text-[var(--color-muted)]">No hay productos activos en esta categoría.</p>}
             </section>)}
           </div>
           {totalPages > 1 ? <nav className="mt-8 flex flex-col gap-3 border-t border-[var(--color-border)] pt-5 sm:flex-row sm:items-center sm:justify-between" aria-label="Paginación del menú">

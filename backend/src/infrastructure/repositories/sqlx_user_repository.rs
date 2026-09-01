@@ -5,7 +5,7 @@ use uuid::Uuid;
 
 use crate::domain::{
     auth::{Role, Tenant, User},
-    menu::{Category, MenuRepository, Product},
+    menu::{Category, MenuRepository, Modifier, ModifierGroup, Product},
     repositories::{LoginAttemptState, RefreshTokenRecord, UserRepository},
     value_objects::{email::Email, password_hash::PasswordHash},
 };
@@ -600,7 +600,146 @@ impl MenuRepository for SqlxUserRepository {
         .await?;
         Ok(())
     }
+
+    async fn list_modifier_groups(&self, tenant_id: Uuid) -> Result<Vec<ModifierGroup>, anyhow::Error> {
+        let group_rows = sqlx::query(
+            "SELECT id, name, required, min_selections, max_selections, is_active FROM modifier_groups WHERE tenant_id = $1 ORDER BY name",
+        )
+        .bind(tenant_id)
+        .fetch_all(&self.pool)
+        .await?;
+
+        let mut groups = Vec::with_capacity(group_rows.len());
+        for row in group_rows {
+            let id: Uuid = row.try_get("id")?;
+            let modifiers = self.list_modifiers_for_group(tenant_id, id).await?;
+            groups.push(ModifierGroup {
+                id,
+                name: row.try_get("name")?,
+                required: row.try_get("required")?,
+                min_selections: row.try_get("min_selections")?,
+                max_selections: row.try_get("max_selections")?,
+                is_active: row.try_get("is_active")?,
+                modifiers,
+            });
+        }
+        Ok(groups)
+    }
+
+    async fn create_modifier_group(&self, tenant_id: Uuid, name: &str, required: bool, min_selections: i32, max_selections: i32) -> Result<ModifierGroup, anyhow::Error> {
+        let row = sqlx::query(
+            "INSERT INTO modifier_groups (id, tenant_id, name, required, min_selections, max_selections) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, name, required, min_selections, max_selections, is_active",
+        )
+        .bind(Uuid::new_v4()).bind(tenant_id).bind(name).bind(required).bind(min_selections).bind(max_selections)
+        .fetch_one(&self.pool).await?;
+
+        Ok(ModifierGroup {
+            id: row.try_get("id")?,
+            name: row.try_get("name")?,
+            required: row.try_get("required")?,
+            min_selections: row.try_get("min_selections")?,
+            max_selections: row.try_get("max_selections")?,
+            is_active: row.try_get("is_active")?,
+            modifiers: Vec::new(),
+        })
+    }
+
+    async fn update_modifier_group(&self, tenant_id: Uuid, group_id: Uuid, name: &str, required: bool, min_selections: i32, max_selections: i32) -> Result<Option<ModifierGroup>, anyhow::Error> {
+        let row = sqlx::query(
+            "UPDATE modifier_groups SET name = $1, required = $2, min_selections = $3, max_selections = $4 WHERE id = $5 AND tenant_id = $6 AND is_active = true RETURNING id, name, required, min_selections, max_selections, is_active",
+        )
+        .bind(name).bind(required).bind(min_selections).bind(max_selections).bind(group_id).bind(tenant_id)
+        .fetch_optional(&self.pool).await?;
+
+        let Some(row) = row else { return Ok(None) };
+        let id: Uuid = row.try_get("id")?;
+        let modifiers = self.list_modifiers_for_group(tenant_id, id).await?;
+        Ok(Some(ModifierGroup {
+            id,
+            name: row.try_get("name")?,
+            required: row.try_get("required")?,
+            min_selections: row.try_get("min_selections")?,
+            max_selections: row.try_get("max_selections")?,
+            is_active: row.try_get("is_active")?,
+            modifiers,
+        }))
+    }
+
+    async fn deactivate_modifier_group(&self, tenant_id: Uuid, group_id: Uuid) -> Result<bool, anyhow::Error> {
+        let result = sqlx::query("UPDATE modifier_groups SET is_active = false WHERE id = $1 AND tenant_id = $2 AND is_active = true")
+            .bind(group_id).bind(tenant_id).execute(&self.pool).await?;
+        Ok(result.rows_affected() == 1)
+    }
+
+    async fn create_modifier(&self, tenant_id: Uuid, group_id: Uuid, name: &str, price_delta: f64) -> Result<Modifier, anyhow::Error> {
+        let row = sqlx::query(
+            "INSERT INTO modifiers (id, tenant_id, modifier_group_id, name, price) SELECT $1, $2, id, $3, $4 FROM modifier_groups WHERE id = $5 AND tenant_id = $2 AND is_active = true RETURNING id, modifier_group_id, name, price::text AS price, is_active",
+        )
+        .bind(Uuid::new_v4()).bind(tenant_id).bind(name).bind(price_delta).bind(group_id)
+        .fetch_optional(&self.pool).await?
+        .ok_or_else(|| anyhow::anyhow!("modifier group not found for tenant"))?;
+        modifier_from_row(&row)
+    }
+
+    async fn update_modifier(&self, tenant_id: Uuid, modifier_id: Uuid, name: &str, price_delta: f64, is_active: bool) -> Result<Option<Modifier>, anyhow::Error> {
+        let row = sqlx::query(
+            "UPDATE modifiers SET name = $1, price = $2, is_active = $3 WHERE id = $4 AND tenant_id = $5 RETURNING id, modifier_group_id, name, price::text AS price, is_active",
+        )
+        .bind(name).bind(price_delta).bind(is_active).bind(modifier_id).bind(tenant_id)
+        .fetch_optional(&self.pool).await?;
+        row.as_ref().map(modifier_from_row).transpose()
+    }
+
+    async fn delete_modifier(&self, tenant_id: Uuid, modifier_id: Uuid) -> Result<bool, anyhow::Error> {
+        let result = sqlx::query("DELETE FROM modifiers WHERE id = $1 AND tenant_id = $2")
+            .bind(modifier_id).bind(tenant_id).execute(&self.pool).await?;
+        Ok(result.rows_affected() == 1)
+    }
+
+    async fn set_product_modifier_groups(&self, tenant_id: Uuid, product_id: Uuid, group_ids: &[Uuid]) -> Result<(), anyhow::Error> {
+        let mut tx = self.pool.begin().await?;
+        sqlx::query("DELETE FROM product_modifier_groups WHERE tenant_id = $1 AND product_id = $2")
+            .bind(tenant_id).bind(product_id).execute(&mut *tx).await?;
+        for group_id in group_ids {
+            sqlx::query(
+                "INSERT INTO product_modifier_groups (tenant_id, product_id, modifier_group_id) VALUES ($1, $2, $3)",
+            )
+            .bind(tenant_id).bind(product_id).bind(group_id)
+            .execute(&mut *tx).await?;
+        }
+        tx.commit().await?;
+        Ok(())
+    }
+
+    async fn list_product_modifier_group_ids(&self, tenant_id: Uuid, product_id: Uuid) -> Result<Vec<Uuid>, anyhow::Error> {
+        let rows = sqlx::query_scalar::<_, Uuid>(
+            "SELECT modifier_group_id FROM product_modifier_groups WHERE tenant_id = $1 AND product_id = $2",
+        )
+        .bind(tenant_id).bind(product_id).fetch_all(&self.pool).await?;
+        Ok(rows)
+    }
 }
+
+impl SqlxUserRepository {
+    async fn list_modifiers_for_group(&self, tenant_id: Uuid, group_id: Uuid) -> Result<Vec<Modifier>, anyhow::Error> {
+        let rows = sqlx::query(
+            "SELECT id, modifier_group_id, name, price::text AS price, is_active FROM modifiers WHERE modifier_group_id = $1 AND tenant_id = $2 ORDER BY name",
+        )
+        .bind(group_id).bind(tenant_id).fetch_all(&self.pool).await?;
+        rows.iter().map(modifier_from_row).collect()
+    }
+}
+
+fn modifier_from_row(row: &sqlx::postgres::PgRow) -> Result<Modifier, anyhow::Error> {
+    Ok(Modifier {
+        id: row.try_get("id")?,
+        modifier_group_id: row.try_get("modifier_group_id")?,
+        name: row.try_get("name")?,
+        price_delta: row.try_get::<String, _>("price")?.parse()?,
+        is_active: row.try_get("is_active")?,
+    })
+}
+
 
 fn product_from_row(row: &sqlx::postgres::PgRow) -> Result<Product, anyhow::Error> {
     Ok(Product {

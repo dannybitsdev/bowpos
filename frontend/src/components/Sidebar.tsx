@@ -21,6 +21,7 @@ const navItems: NavItem[] = [
   { label: 'Órdenes', path: '/orders/history', requiredPermissions: ['ordenes:read'], icon: <OrdersIcon /> },
   { label: 'Menú', path: '/menu', requiredPermissions: ['inventario:read'], icon: <MenuIcon /> },
   { label: 'Categorías', path: '/categories', requiredPermissions: ['inventario:admin'], icon: <CategoriesIcon /> },
+  { label: 'Modificadores', path: '/modifiers', requiredPermissions: ['inventario:admin'], icon: <ModifiersIcon /> },
 ];
 
 function DashboardIcon() {
@@ -63,6 +64,15 @@ function CategoriesIcon() {
       <rect x="14" y="4" width="6" height="6" rx="1" />
       <rect x="4" y="14" width="6" height="6" rx="1" />
       <rect x="14" y="14" width="6" height="6" rx="1" />
+    </svg>
+  );
+}
+
+function ModifiersIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <circle cx="12" cy="12" r="3" />
+      <path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1" />
     </svg>
   );
 }
