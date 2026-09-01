@@ -18,3 +18,7 @@ export async function refreshTokenRequest(refreshToken: string): Promise<LoginRe
 
   return response.data;
 }
+
+export async function logoutRequest(refreshToken: string | null): Promise<void> {
+  await apiClient.post('/v1/auth/logout', { refresh_token: refreshToken });
+}

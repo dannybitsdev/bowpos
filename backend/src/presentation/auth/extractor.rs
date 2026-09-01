@@ -49,6 +49,8 @@ where
     P: AccessPolicy,
 {
     pub user: User,
+    pub token_id: Uuid,
+    pub expires_at: i64,
     /// Sede resuelta para este request desde el header `X-Branch-ID`, validada contra
     /// `user.branch_ids`. `None` = el usuario opera sin restringirse a una sede (solo
     /// permitido para roles administrativos con acceso a todas las sedes del tenant).
@@ -94,6 +96,17 @@ where
             Ok(value) => value,
             Err(_) => return Err(AuthorizationError::new(StatusCode::UNAUTHORIZED, "invalid or expired token")),
         };
+
+        let is_revoked = sqlx::query_scalar::<_, bool>(
+            "SELECT EXISTS (SELECT 1 FROM auth_access_token_revocations WHERE token_id = $1 AND expires_at > NOW())",
+        )
+        .bind(claims.jti)
+        .fetch_one(&app_state.pool)
+        .await
+        .map_err(|_| AuthorizationError::new(StatusCode::UNAUTHORIZED, "unable to validate session"))?;
+        if is_revoked {
+            return Err(AuthorizationError::new(StatusCode::UNAUTHORIZED, "token has been revoked"));
+        }
 
         let no_role_guard = P::required_roles().is_empty();
         let no_permission_guard = P::required_permissions().is_empty();
@@ -161,6 +174,8 @@ where
 
         Ok(Self {
             user,
+            token_id: claims.jti,
+            expires_at: claims.exp,
             branch,
             _policy: PhantomData,
         })
@@ -228,6 +243,7 @@ mod tests {
         async fn persist_refresh_token(&self, _id: Uuid, _user_id: Uuid, _tenant_id: Uuid, _token_hash: &str, _expires_at: chrono::DateTime<chrono::Utc>) -> Result<(), anyhow::Error> { Ok(()) }
         async fn get_valid_refresh_token(&self, _token_hash: &str, _now: chrono::DateTime<chrono::Utc>) -> Result<Option<RefreshTokenRecord>, anyhow::Error> { Ok(None) }
         async fn revoke_refresh_token(&self, _token_id: Uuid, _replaced_by: Option<Uuid>) -> Result<(), anyhow::Error> { Ok(()) }
+        async fn revoke_refresh_token_by_hash(&self, _user_id: Uuid, _tenant_id: Uuid, _token_hash: &str) -> Result<(), anyhow::Error> { Ok(()) }
         async fn get_login_attempt_state(&self, _email: &str) -> Result<Option<LoginAttemptState>, anyhow::Error> { Ok(None) }
         async fn register_login_failure(&self, _email: &str, _max_attempts: i32, _lock_minutes: i32) -> Result<LoginAttemptState, anyhow::Error> {
             Ok(LoginAttemptState { failed_attempts: 1, locked_until: None })
@@ -296,6 +312,7 @@ mod tests {
         let now = Utc::now().timestamp();
         let claims = crate::infrastructure::services::jwt_service::JwtClaims {
             sub: Uuid::new_v4().to_string(),
+            jti: Uuid::new_v4(),
             user_id: Uuid::new_v4(),
             tenant_id: Uuid::new_v4(),
             tenant_name: "Bits TI Tecnología".to_string(),

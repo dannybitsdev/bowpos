@@ -137,7 +137,8 @@ async fn main() {
         .nest("/api", platform_router())
         .nest("/api/v1", menu_router())
         .nest("/api/v1", orders_router())
-        .nest("/api/auth", auth_router())
+        .nest("/api/auth", auth_router().clone())
+        .nest("/api/v1/auth", auth_router())
         .layer(
             CorsLayer::new()
                 .allow_origin(Any)

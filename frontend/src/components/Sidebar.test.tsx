@@ -6,7 +6,7 @@ import { useAuthStore } from '../features/auth/application/authStore';
 import { Sidebar } from './Sidebar';
 
 vi.mock('../features/branch/application/BranchContext', () => ({
-  useBranchContext: () => ({ branches: [], activeBranchId: null, setActiveBranchId: vi.fn() }),
+  useBranchContext: () => ({ branches: [{ id: 'main', name: 'Sede Principal' }], activeBranchId: 'main', setActiveBranchId: vi.fn() }),
 }));
 vi.mock('../features/platform/application/PlatformContext', () => ({
   usePlatformContext: () => ({ tenants: [], overrideTenantId: null, setOverrideTenantId: vi.fn() }),
@@ -17,7 +17,7 @@ describe('Sidebar', () => {
 
   it('does not render sections without a granted permission', () => {
     useAuthStore.getState().login({ accessToken: 'token', refreshToken: 'refresh' }, {
-      user_id: 'waiter', tenant_id: 'tenant', role: 'MESERO', permissions: ['ordenes:create'],
+      user_id: 'waiter', tenant_id: 'tenant', name: 'Andres Gomez', role: 'MESERO', permissions: ['ordenes:create'],
     });
 
     render(<MemoryRouter><Sidebar /></MemoryRouter>);
@@ -27,5 +27,7 @@ describe('Sidebar', () => {
     expect(screen.queryByRole('button', { name: 'Reportes' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Cumplimiento Legal' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Ventas' })).not.toBeInTheDocument();
+    expect(screen.getByText('Andres Gomez')).toBeInTheDocument();
+    expect(screen.getByText('Mesero · Sede Principal')).toBeInTheDocument();
   });
 });

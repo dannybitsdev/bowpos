@@ -8,6 +8,7 @@ use crate::domain::auth::{Permission, Role, User};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JwtClaims {
     pub sub: String,
+    pub jti: Uuid,
     pub user_id: Uuid,
     pub tenant_id: Uuid,
     pub tenant_name: String,
@@ -27,6 +28,7 @@ impl JwtClaims {
 
         Self {
             sub: user.id.to_string(),
+            jti: Uuid::new_v4(),
             user_id: user.id,
             tenant_id: user.tenant_id,
             tenant_name: user.tenant_name.clone(),

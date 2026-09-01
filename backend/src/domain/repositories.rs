@@ -51,6 +51,12 @@ pub trait UserRepository: Send + Sync {
         token_id: Uuid,
         replaced_by: Option<Uuid>,
     ) -> Result<(), anyhow::Error>;
+    async fn revoke_refresh_token_by_hash(
+        &self,
+        user_id: Uuid,
+        tenant_id: Uuid,
+        token_hash: &str,
+    ) -> Result<(), anyhow::Error>;
     async fn get_login_attempt_state(
         &self,
         email: &str,
