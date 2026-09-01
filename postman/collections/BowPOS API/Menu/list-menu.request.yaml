@@ -1,0 +1,9 @@
+$kind: http-request
+method: GET
+url: '{{base_url}}/api/v1/menu'
+order: 1000
+headers:
+  - key: x-tenant-id
+    value: '{{tenant_id}}'
+  - key: x-branch-id
+    value: '{{branch_id}}'

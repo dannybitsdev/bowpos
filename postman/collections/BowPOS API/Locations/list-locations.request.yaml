@@ -1,0 +1,7 @@
+$kind: http-request
+method: GET
+url: '{{base_url}}/api/locations'
+order: 1000
+headers:
+  - key: x-tenant-id
+    value: '{{tenant_id}}'
