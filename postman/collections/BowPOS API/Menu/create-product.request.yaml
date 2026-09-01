@@ -1,0 +1,20 @@
+$kind: http-request
+method: POST
+url: '{{base_url}}/api/v1/menu/products'
+order: 7000
+headers:
+  - key: Content-Type
+    value: application/json
+  - key: x-tenant-id
+    value: '{{tenant_id}}'
+body:
+  type: json
+  content: |-
+    {
+      "category_id": "{{category_id}}",
+      "name": "Café americano",
+      "description": "Taza de café",
+      "price": 4500,
+      "stock": 100,
+      "image_url": null
+    }

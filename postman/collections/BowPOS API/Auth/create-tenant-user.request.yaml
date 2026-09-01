@@ -1,0 +1,19 @@
+$kind: http-request
+method: POST
+url: '{{base_url}}/api/auth/users'
+order: 5000
+headers:
+  - key: Content-Type
+    value: application/json
+  - key: x-tenant-id
+    value: '{{tenant_id}}'
+body:
+  type: json
+  content: |-
+    {
+      "tenant_id": "{{tenant_id}}",
+      "full_name": "Branch User",
+      "email": "branchuser@example.com",
+      "password": "changeme",
+      "role": "BRANCH_MANAGER"
+    }

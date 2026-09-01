@@ -1,0 +1,20 @@
+$kind: http-request
+method: PUT
+url: '{{base_url}}/api/v1/menu/products/{{product_id}}'
+order: 8000
+headers:
+  - key: Content-Type
+    value: application/json
+  - key: x-tenant-id
+    value: '{{tenant_id}}'
+body:
+  type: json
+  content: |-
+    {
+      "category_id": "{{category_id}}",
+      "name": "Café americano doble",
+      "description": "Taza grande de café",
+      "price": 6500,
+      "stock": 80,
+      "image_url": null
+    }

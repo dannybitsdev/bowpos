@@ -1,0 +1,7 @@
+$kind: http-request
+method: GET
+url: '{{base_url}}/api/platform/tenants'
+order: 1000
+headers:
+  - key: x-tenant-override
+    value: '{{tenant_override}}'
