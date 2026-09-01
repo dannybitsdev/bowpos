@@ -1,0 +1,33 @@
+$kind: http-request
+method: POST
+url: '{{base_url}}/api/v1/orders'
+order: 6000
+headers:
+  - key: Content-Type
+    value: application/json
+  - key: x-tenant-id
+    value: '{{tenant_id}}'
+  - key: x-branch-id
+    value: '{{branch_id}}'
+body:
+  type: json
+  content: |-
+    {
+      "service_type": "DINE_IN",
+      "table_name": "Mesa 1",
+      "customer_name": "Cliente Demo",
+      "notes": "Sin azúcar",
+      "payment_method": "CASH",
+      "tax_rate": 0.19,
+      "tip": 0,
+      "discount": 0,
+      "items": [
+        {
+          "product_id": "{{product_id}}",
+          "quantity": 1,
+          "notes": "Extra caliente",
+          "modifier_ids": [],
+          "topping_ids": []
+        }
+      ]
+    }

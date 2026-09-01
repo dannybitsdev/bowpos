@@ -1,0 +1,17 @@
+$kind: http-request
+method: POST
+url: '{{base_url}}/api/locations'
+order: 2000
+headers:
+  - key: Content-Type
+    value: application/json
+  - key: x-tenant-id
+    value: '{{tenant_id}}'
+body:
+  type: json
+  content: |-
+    {
+      "name": "Sucursal Centro",
+      "address": "Calle 123",
+      "city": "Bogotá"
+    }

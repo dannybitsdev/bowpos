@@ -1,6 +1,8 @@
 import axios from 'axios';
 
 import { useAuthStore } from '../../application/authStore';
+import { useBranchStore } from '../../../branch/application/branchStore';
+import { usePlatformStore } from '../../../platform/application/platformStore';
 
 const runtimeConfig = (globalThis as typeof globalThis & {
   __BOWPOS_CONFIG__?: { apiUrl?: string };
@@ -31,6 +33,18 @@ apiClient.interceptors.request.use((config) => {
     config.headers['X-Tenant-ID'] = user.tenant_id;
   }
 
+  const activeBranchId = useBranchStore.getState().activeBranchId;
+  if (activeBranchId) {
+    config.headers['X-Branch-ID'] = activeBranchId;
+  }
+
+  if (user?.role === 'SUPER_ADMIN') {
+    const overrideTenantId = usePlatformStore.getState().overrideTenantId;
+    if (overrideTenantId) {
+      config.headers['X-Tenant-Override'] = overrideTenantId;
+    }
+  }
+
   return config;
 });
 
@@ -38,8 +52,9 @@ apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config as { _retry?: boolean } | undefined;
+    const isLogoutRequest = originalRequest?.url === '/v1/auth/logout';
 
-    if (error.response?.status === 401 && originalRequest && !originalRequest._retry) {
+    if (error.response?.status === 401 && originalRequest && !originalRequest._retry && !isLogoutRequest) {
       const { refreshToken, rotateAccessToken, logout } = useAuthStore.getState();
       if (!refreshToken) {
         logout();

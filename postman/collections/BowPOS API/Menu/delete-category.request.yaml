@@ -1,0 +1,7 @@
+$kind: http-request
+method: DELETE
+url: '{{base_url}}/api/v1/menu/categories/{{category_id}}'
+order: 6000
+headers:
+  - key: x-tenant-id
+    value: '{{tenant_id}}'

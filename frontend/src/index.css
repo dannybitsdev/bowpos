@@ -30,3 +30,64 @@ body {
 #root {
   min-height: 100vh;
 }
+
+.print-only {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: 80mm auto;
+    margin: 0;
+  }
+
+  body {
+    background: #fff;
+    color: #000;
+  }
+
+  .screen-only {
+    display: none !important;
+  }
+
+  .print-only {
+    display: block !important;
+  }
+
+  .print-ticket {
+    width: 76mm;
+    margin: 0 auto;
+    padding: 5mm 3mm;
+    color: #000;
+    font: 12px/1.4 monospace;
+    text-align: center;
+  }
+
+  .print-ticket h1 {
+    margin: 0 0 2mm;
+    font-size: 16px;
+  }
+
+  .print-ticket h2 {
+    margin: 1mm 0;
+    font-size: 13px;
+  }
+
+  .print-ticket p {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin: 2mm 0;
+  }
+
+  .print-ticket small {
+    display: block;
+    padding-left: 4mm;
+  }
+
+  .print-ticket hr {
+    border: 0;
+    border-top: 1px dashed #000;
+    margin: 3mm 0;
+  }
+}

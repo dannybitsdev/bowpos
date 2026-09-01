@@ -1,0 +1,33 @@
+$kind: collection
+description: |-
+  Collection generated from the backend implementation in this workspace.
+  Includes auth, platform, dashboard, locations, menu, and orders endpoints.
+variables:
+  - key: base_url
+    value: 'http://localhost:8080'
+  - key: access_token
+    value: ''
+  - key: refresh_token
+    value: ''
+  - key: tenant_id
+    value: ''
+  - key: tenant_slug
+    value: ''
+  - key: tenant_override
+    value: ''
+  - key: branch_id
+    value: ''
+  - key: user_id
+    value: ''
+  - key: category_id
+    value: ''
+  - key: product_id
+    value: ''
+  - key: order_id
+    value: ''
+  - key: location_id
+    value: ''
+auth:
+  type: bearer
+  credentials:
+    token: "{{access_token}}"

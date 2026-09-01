@@ -35,6 +35,17 @@ impl SqlxUserRepository {
 
         Ok(row.unwrap_or_else(|| "Bits TI Tecnología".to_string()))
     }
+
+    async fn get_branch_ids(&self, tenant_id: Uuid, user_id: Uuid) -> Result<Vec<Uuid>, anyhow::Error> {
+        let ids = sqlx::query_scalar::<_, Uuid>(
+            "SELECT location_id FROM user_branch_access WHERE tenant_id = $1 AND user_id = $2 ORDER BY is_primary DESC",
+        )
+        .bind(tenant_id)
+        .bind(user_id)
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(ids)
+    }
 }
 
 #[async_trait]
@@ -71,15 +82,18 @@ impl UserRepository for SqlxUserRepository {
             .map_err(|_| anyhow::anyhow!("invalid email in database"))?;
         let password_hash = PasswordHash::new(record.try_get::<String, _>("password_hash")?)
             .map_err(|_| anyhow::anyhow!("invalid hash in database"))?;
+        let id: Uuid = record.try_get("id")?;
+        let branch_ids = self.get_branch_ids(tenant_id, id).await?;
 
         Ok(Some(User {
-            id: record.try_get("id")?,
+            id,
             tenant_id,
             tenant_name,
             name: record.try_get("name")?,
             email,
             password_hash,
             role,
+            branch_ids,
         }))
     }
 
@@ -108,6 +122,7 @@ impl UserRepository for SqlxUserRepository {
             .map_err(|_| anyhow::anyhow!("invalid email in database"))?;
         let password_hash = PasswordHash::new(record.try_get::<String, _>("password_hash")?)
             .map_err(|_| anyhow::anyhow!("invalid hash in database"))?;
+        let branch_ids = self.get_branch_ids(tenant_id, user_id).await?;
 
         Ok(Some(User {
             id: record.try_get("id")?,
@@ -117,6 +132,7 @@ impl UserRepository for SqlxUserRepository {
             email,
             password_hash,
             role,
+            branch_ids,
         }))
     }
 
@@ -201,6 +217,7 @@ impl UserRepository for SqlxUserRepository {
                 .map_err(|_| anyhow::anyhow!("invalid hash"))?,
             role: Role::from_db(row.try_get::<&str, _>("role")?)
                 .ok_or_else(|| anyhow::anyhow!("invalid role"))?,
+            branch_ids: Vec::new(),
         })
     }
 
@@ -271,6 +288,31 @@ impl UserRepository for SqlxUserRepository {
         )
         .bind(token_id)
         .bind(replaced_by)
+        .execute(&self.pool)
+        .await?;
+
+        Ok(())
+    }
+
+    async fn revoke_refresh_token_by_hash(
+        &self,
+        user_id: Uuid,
+        tenant_id: Uuid,
+        token_hash: &str,
+    ) -> Result<(), anyhow::Error> {
+        sqlx::query(
+            r#"
+            UPDATE auth_refresh_tokens
+            SET revoked_at = NOW()
+            WHERE user_id = $1
+              AND tenant_id = $2
+              AND token_hash = $3
+              AND revoked_at IS NULL
+            "#,
+        )
+        .bind(user_id)
+        .bind(tenant_id)
+        .bind(token_hash)
         .execute(&self.pool)
         .await?;
 
@@ -353,11 +395,40 @@ impl UserRepository for SqlxUserRepository {
 
         Ok(())
     }
+
+    async fn assign_branch(
+        &self,
+        tenant_id: Uuid,
+        user_id: Uuid,
+        location_id: Uuid,
+        is_primary: bool,
+    ) -> Result<(), anyhow::Error> {
+        if is_primary {
+            sqlx::query("UPDATE user_branch_access SET is_primary = FALSE WHERE tenant_id = $1 AND user_id = $2")
+                .bind(tenant_id)
+                .bind(user_id)
+                .execute(&self.pool)
+                .await?;
+        }
+
+        sqlx::query(
+            "INSERT INTO user_branch_access (tenant_id, user_id, location_id, is_primary) VALUES ($1, $2, $3, $4)
+             ON CONFLICT (tenant_id, user_id, location_id) DO UPDATE SET is_primary = EXCLUDED.is_primary",
+        )
+        .bind(tenant_id)
+        .bind(user_id)
+        .bind(location_id)
+        .bind(is_primary)
+        .execute(&self.pool)
+        .await?;
+
+        Ok(())
+    }
 }
 
 #[async_trait]
 impl MenuRepository for SqlxUserRepository {
-    async fn list_menu(&self, tenant_id: Uuid) -> Result<Vec<Category>, anyhow::Error> {
+    async fn list_menu(&self, tenant_id: Uuid, branch: Option<Uuid>) -> Result<Vec<Category>, anyhow::Error> {
         let rows = sqlx::query(
             r#"
             SELECT
@@ -369,20 +440,26 @@ impl MenuRepository for SqlxUserRepository {
                 p.id AS product_id,
                 p.name AS product_name,
                 p.description AS product_description,
-                p.price::text AS product_price,
+                COALESCE(bpo.price, p.price)::text AS product_price,
                 p.image_url AS product_image_url,
-                p.stock AS product_stock
+                COALESCE(bpo.stock, p.stock) AS product_stock
             FROM categories c
             LEFT JOIN products p
                 ON p.category_id = c.id
                 AND p.tenant_id = c.tenant_id
                 AND p.is_active = true
+            LEFT JOIN branch_product_overrides bpo
+                ON bpo.product_id = p.id
+                AND bpo.tenant_id = p.tenant_id
+                AND bpo.location_id = $2
             WHERE c.tenant_id = $1
                 AND c.is_active = true
+                AND (p.id IS NULL OR $2::uuid IS NULL OR bpo.is_available IS NULL OR bpo.is_available = true)
             ORDER BY c.display_order ASC, c.name ASC, p.name ASC
             "#,
         )
         .bind(tenant_id)
+        .bind(branch)
         .fetch_all(&self.pool)
         .await?;
 
@@ -422,6 +499,17 @@ impl MenuRepository for SqlxUserRepository {
         }
 
         Ok(categories)
+    }
+
+    async fn list_products(&self, tenant_id: Uuid) -> Result<Vec<Product>, anyhow::Error> {
+        let rows = sqlx::query(
+            "SELECT id, category_id, name, description, price::text AS price, stock, image_url FROM products WHERE tenant_id = $1 AND is_active = true ORDER BY name",
+        )
+        .bind(tenant_id)
+        .fetch_all(&self.pool)
+        .await?;
+
+        rows.iter().map(product_from_row).collect()
     }
 
     async fn list_categories(&self, tenant_id: Uuid) -> Result<Vec<Category>, anyhow::Error> {
@@ -495,6 +583,22 @@ impl MenuRepository for SqlxUserRepository {
         let result = sqlx::query("UPDATE categories SET is_active = false, updated_at = NOW() WHERE id = $1 AND tenant_id = $2 AND is_active = true")
             .bind(category_id).bind(tenant_id).execute(&self.pool).await?;
         Ok(result.rows_affected() == 1)
+    }
+
+    async fn upsert_branch_override(
+        &self, tenant_id: Uuid, location_id: Uuid, product_id: Uuid,
+        price: Option<f64>, stock: Option<i32>, is_available: bool,
+    ) -> Result<(), anyhow::Error> {
+        sqlx::query(
+            "INSERT INTO branch_product_overrides (tenant_id, location_id, product_id, price, stock, is_available, updated_at)
+             VALUES ($1, $2, $3, $4, $5, $6, NOW())
+             ON CONFLICT (tenant_id, location_id, product_id) DO UPDATE SET
+                price = EXCLUDED.price, stock = EXCLUDED.stock, is_available = EXCLUDED.is_available, updated_at = NOW()",
+        )
+        .bind(tenant_id).bind(location_id).bind(product_id).bind(price).bind(stock).bind(is_available)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
     }
 }
 

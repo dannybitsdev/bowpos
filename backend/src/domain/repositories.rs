@@ -51,6 +51,12 @@ pub trait UserRepository: Send + Sync {
         token_id: Uuid,
         replaced_by: Option<Uuid>,
     ) -> Result<(), anyhow::Error>;
+    async fn revoke_refresh_token_by_hash(
+        &self,
+        user_id: Uuid,
+        tenant_id: Uuid,
+        token_hash: &str,
+    ) -> Result<(), anyhow::Error>;
     async fn get_login_attempt_state(
         &self,
         email: &str,
@@ -62,4 +68,11 @@ pub trait UserRepository: Send + Sync {
         lock_minutes: i32,
     ) -> Result<LoginAttemptState, anyhow::Error>;
     async fn reset_login_failures(&self, email: &str) -> Result<(), anyhow::Error>;
+    async fn assign_branch(
+        &self,
+        tenant_id: Uuid,
+        user_id: Uuid,
+        location_id: Uuid,
+        is_primary: bool,
+    ) -> Result<(), anyhow::Error>;
 }

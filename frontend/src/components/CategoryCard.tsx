@@ -1,3 +1,5 @@
+import { useState } from 'react';
+
 import type { MenuCategory } from '../pages/menuTypes';
 import type { Product } from '../pages/menuTypes';
 
@@ -6,9 +8,14 @@ type CategoryCardProps = {
   products: Product[];
   onEdit: (category: MenuCategory) => void;
   onDeactivate: (category: MenuCategory) => void;
+  onDeleteProduct: (product: Product) => void;
 };
 
-export function CategoryCard({ category, products, onEdit, onDeactivate }: CategoryCardProps) {
+export function CategoryCard({ category, products, onEdit, onDeactivate, onDeleteProduct }: CategoryCardProps) {
+  const [showAllProducts, setShowAllProducts] = useState(false);
+  const visibleProducts = showAllProducts ? products : products.slice(0, 6);
+  const hasMoreProducts = products.length > 6;
+
   return (
     <article className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-card-bg)] shadow-panel">
       <div className="aspect-[16/9] bg-[#0D0D0D]">
@@ -21,7 +28,10 @@ export function CategoryCard({ category, products, onEdit, onDeactivate }: Categ
         </div>
         <div className="rounded-xl border border-[var(--color-border)] bg-black/15 p-3">
           <div className="flex items-center justify-between gap-3"><p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-muted)]">Productos asignados</p><span className="text-xs text-[var(--color-muted)]">{products.length}</span></div>
-          {products.length ? <ul className="mt-2 space-y-1 text-sm text-white">{products.map((product) => <li key={product.id} className="truncate">{product.name}</li>)}</ul> : <p className="mt-2 text-sm text-[var(--color-muted)]">No hay productos asignados.</p>}
+          {products.length ? <>
+            <ul className="mt-2 space-y-2 text-sm text-white">{visibleProducts.map((product) => <li key={product.id} className="flex items-center justify-between gap-2"><span className="min-w-0 truncate">{product.name}</span><button type="button" onClick={() => onDeleteProduct(product)} className="shrink-0 text-xs text-rose-200 hover:text-rose-100" aria-label={`Eliminar ${product.name}`}>Eliminar</button></li>)}</ul>
+            {hasMoreProducts ? <button type="button" onClick={() => setShowAllProducts((current) => !current)} className="mt-3 text-xs font-semibold text-[var(--color-primary)] hover:underline">{showAllProducts ? 'Mostrar menos' : `Ver todos (${products.length})`}</button> : null}
+          </> : <p className="mt-2 text-sm text-[var(--color-muted)]">No hay productos asignados.</p>}
         </div>
         <div className="flex flex-wrap gap-2">
           <button type="button" onClick={() => onEdit(category)} className="rounded-lg border border-[var(--color-border)] px-3 py-2 text-sm text-white hover:border-[var(--color-primary)]">Editar</button>

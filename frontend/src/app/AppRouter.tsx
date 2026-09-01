@@ -5,8 +5,12 @@ import { Sidebar } from '../components/Sidebar';
 import { Dashboard } from '../pages/Dashboard';
 import { MenuPage } from '../pages/MenuPage';
 import { CategoryManagementPage } from '../pages/CategoryManagementPage';
+import { OrderBuilderPage } from '../pages/OrderBuilderPage';
+import { OrdersPage } from '../pages/OrdersPage';
 import { LoginPage } from '../features/auth/presentation/pages/LoginPage';
 import { ProtectedRoute } from '../features/auth/presentation/components/ProtectedRoute';
+import { BranchProvider } from '../features/branch/application/BranchContext';
+import { PlatformProvider } from '../features/platform/application/PlatformContext';
 
 function UnauthorizedPage() {
   return (
@@ -23,27 +27,31 @@ function DashboardLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className="flex min-h-screen overflow-x-hidden bg-[var(--color-background)]">
-      <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      <main className="min-w-0 flex-1 lg:ml-72">
-        <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-[var(--color-border)] bg-[var(--color-background)]/95 px-4 py-3 backdrop-blur lg:hidden">
-          <button
-            type="button"
-            onClick={() => setSidebarOpen(true)}
-            className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--color-border)] text-[var(--color-text)] transition hover:border-[var(--color-primary)]"
-            aria-label="Abrir navegación"
-            aria-expanded={sidebarOpen}
-          >
-            <span className="sr-only">Abrir navegación</span>
-            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-              <path d="M4 7h16M4 12h16M4 17h16" />
-            </svg>
-          </button>
-          <span className="truncate text-sm font-semibold text-[var(--color-text)]">Panel central</span>
-        </header>
-        <div className="min-w-0"><Outlet /></div>
-      </main>
-    </div>
+    <BranchProvider>
+      <PlatformProvider>
+        <div className="flex min-h-screen overflow-x-hidden bg-[var(--color-background)]">
+        <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+        <main className="min-w-0 flex-1 lg:ml-72">
+          <header className="screen-only sticky top-0 z-20 flex items-center gap-3 border-b border-[var(--color-border)] bg-[var(--color-background)]/95 px-4 py-3 backdrop-blur lg:hidden">
+            <button
+              type="button"
+              onClick={() => setSidebarOpen(true)}
+              className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--color-border)] text-[var(--color-text)] transition hover:border-[var(--color-primary)]"
+              aria-label="Abrir navegación"
+              aria-expanded={sidebarOpen}
+            >
+              <span className="sr-only">Abrir navegación</span>
+              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                <path d="M4 7h16M4 12h16M4 17h16" />
+              </svg>
+            </button>
+            <span className="truncate text-sm font-semibold text-[var(--color-text)]">Panel central</span>
+          </header>
+          <div className="min-w-0"><Outlet /></div>
+        </main>
+      </div>
+      </PlatformProvider>
+    </BranchProvider>
   );
 }
 
@@ -54,14 +62,16 @@ export function AppRouter() {
       <Route path="/unauthorized" element={<UnauthorizedPage />} />
       <Route
         element={
-          <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'ADMIN_TENANT', 'CAJERO', 'MESERO']}>
+          <ProtectedRoute requiredPermissions={['dashboard:read']}>
             <DashboardLayout />
           </ProtectedRoute>
         }
       >
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/menu" element={<MenuPage />} />
-        <Route path="/categories" element={<CategoryManagementPage />} />
+        <Route path="/dashboard" element={<ProtectedRoute requiredPermissions={['dashboard:read']}><Dashboard /></ProtectedRoute>} />
+        <Route path="/menu" element={<ProtectedRoute requiredPermissions={['inventario:read']}><MenuPage /></ProtectedRoute>} />
+        <Route path="/categories" element={<ProtectedRoute requiredPermissions={['inventario:admin']}><CategoryManagementPage /></ProtectedRoute>} />
+        <Route path="/orders" element={<ProtectedRoute requiredPermissions={['ventas:create', 'ordenes:create']}><OrderBuilderPage /></ProtectedRoute>} />
+        <Route path="/orders/history" element={<ProtectedRoute requiredPermissions={['ordenes:read']}><OrdersPage /></ProtectedRoute>} />
       </Route>
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>

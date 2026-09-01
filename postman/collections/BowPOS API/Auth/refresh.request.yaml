@@ -1,0 +1,28 @@
+$kind: http-request
+method: POST
+url: '{{base_url}}/api/auth/refresh'
+order: 2000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "refresh_token": "{{refresh_token}}"
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('Status is 200', function () {
+        pm.response.to.have.status(200);
+      });
+
+      const json = pm.response.json();
+      if (json?.tokens?.access_token) {
+        pm.collectionVariables.set('access_token', json.tokens.access_token);
+      }
+      if (json?.tokens?.refresh_token) {
+        pm.collectionVariables.set('refresh_token', json.tokens.refresh_token);
+      }

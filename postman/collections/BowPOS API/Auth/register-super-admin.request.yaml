@@ -1,0 +1,17 @@
+$kind: http-request
+method: POST
+url: '{{base_url}}/api/auth/register-super-admin'
+order: 3000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "tenant_name": "Demo Tenant",
+      "tenant_slug": "demo-tenant",
+      "full_name": "Super Admin",
+      "email": "superadmin@example.com",
+      "password": "changeme"
+    }

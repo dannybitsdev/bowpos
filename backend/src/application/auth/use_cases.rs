@@ -7,7 +7,7 @@ use crate::{
     application::auth::{
         commands::{
             AuthTokens, AuthUserView, CreateTenantAdminCommand, CreateTenantUserCommand,
-            LoginCommand, LoginResult, RefreshTokenCommand, RegisterSuperAdminCommand,
+            CurrentUserView, LoginCommand, LoginResult, LogoutCommand, RefreshTokenCommand, RegisterSuperAdminCommand,
         },
         errors::AppError,
     },
@@ -144,6 +144,34 @@ impl AuthUseCases {
             tokens,
             user: to_view(user),
         })
+    }
+
+    pub async fn logout(
+        &self,
+        user: &User,
+        command: LogoutCommand,
+    ) -> Result<(), AppError> {
+        if let Some(refresh_token) = command.refresh_token.filter(|token| !token.trim().is_empty()) {
+            let token_hash = self.refresh_tokens.hash_token(&refresh_token);
+            self.repository
+                .revoke_refresh_token_by_hash(user.id, user.tenant_id, &token_hash)
+                .await
+                .map_err(|_| AppError::Internal)?;
+        }
+        Ok(())
+    }
+
+    pub fn current_user(&self, user: &User, branch_id: Option<Uuid>) -> CurrentUserView {
+        CurrentUserView {
+            id: user.id,
+            nombre: user.name.clone(),
+            email: user.email.as_str().to_string(),
+            rol: user.role,
+            cargo_label: role_label(user.role).to_string(),
+            tenant_id: user.tenant_id,
+            sede_actual_id: branch_id,
+            permisos: user.role.permissions().into_iter().map(Permission::as_str).map(str::to_string).collect(),
+        }
     }
 
     async fn issue_tokens_for_user(&self, user: &User) -> Result<AuthTokens, AppError> {
@@ -347,7 +375,19 @@ impl AuthUseCases {
             email,
             password_hash,
             role,
+            branch_ids: claims.branch_ids.clone(),
         })
+    }
+}
+
+fn role_label(role: Role) -> &'static str {
+    match role {
+        Role::SUPER_ADMIN => "Super Admin",
+        Role::ADMIN_TENANT => "Administrador",
+        Role::BRANCH_MANAGER => "Gerente de sede",
+        Role::CAJERO => "Cajero",
+        Role::MESERO => "Mesero",
+        Role::COCINERO => "Cocinero",
     }
 }
 
@@ -356,6 +396,8 @@ fn to_view(user: User) -> AuthUserView {
         user_id: user.id,
         tenant_id: user.tenant_id,
         tenant_name: user.tenant_name,
+        name: user.name,
+        email: user.email.as_str().to_string(),
         role: user.role,
         permissions: user
             .role
@@ -460,6 +502,15 @@ mod tests {
             Ok(())
         }
 
+        async fn revoke_refresh_token_by_hash(
+            &self,
+            _user_id: Uuid,
+            _tenant_id: Uuid,
+            _token_hash: &str,
+        ) -> Result<(), anyhow::Error> {
+            Ok(())
+        }
+
         async fn get_login_attempt_state(
             &self,
             _email: &str,
@@ -482,6 +533,16 @@ mod tests {
         async fn reset_login_failures(&self, _email: &str) -> Result<(), anyhow::Error> {
             Ok(())
         }
+
+        async fn assign_branch(
+            &self,
+            _tenant_id: Uuid,
+            _user_id: Uuid,
+            _location_id: Uuid,
+            _is_primary: bool,
+        ) -> Result<(), anyhow::Error> {
+            Ok(())
+        }
     }
 
     #[tokio::test]
@@ -498,6 +559,7 @@ mod tests {
             )
             .expect("password hash"),
             role: Role::SUPER_ADMIN,
+            branch_ids: Vec::new(),
         };
 
         let repo = Arc::new(MockRepo { user: Some(user) });
@@ -535,6 +597,7 @@ mod tests {
             )
             .expect("password hash"),
             role: Role::SUPER_ADMIN,
+            branch_ids: Vec::new(),
         };
 
         let view = to_view(user);

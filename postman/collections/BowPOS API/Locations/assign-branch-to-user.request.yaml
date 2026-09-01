@@ -1,0 +1,16 @@
+$kind: http-request
+method: POST
+url: '{{base_url}}/api/users/{{user_id}}/branches'
+order: 3000
+headers:
+  - key: Content-Type
+    value: application/json
+  - key: x-tenant-id
+    value: '{{tenant_id}}'
+body:
+  type: json
+  content: |-
+    {
+      "location_id": "{{location_id}}",
+      "is_primary": true
+    }

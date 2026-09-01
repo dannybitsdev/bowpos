@@ -1,0 +1,19 @@
+$kind: http-request
+method: PUT
+url: '{{base_url}}/api/v1/menu/branch-overrides/{{product_id}}'
+order: 10000
+headers:
+  - key: Content-Type
+    value: application/json
+  - key: x-tenant-id
+    value: '{{tenant_id}}'
+  - key: x-branch-id
+    value: '{{branch_id}}'
+body:
+  type: json
+  content: |-
+    {
+      "price": 5000,
+      "stock": 50,
+      "is_available": true
+    }

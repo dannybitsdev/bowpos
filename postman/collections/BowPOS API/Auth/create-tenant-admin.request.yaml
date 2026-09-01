@@ -1,0 +1,18 @@
+$kind: http-request
+method: POST
+url: '{{base_url}}/api/auth/tenant-admins'
+order: 4000
+headers:
+  - key: Content-Type
+    value: application/json
+  - key: x-tenant-override
+    value: '{{tenant_override}}'
+body:
+  type: json
+  content: |-
+    {
+      "tenant_id": "{{tenant_id}}",
+      "full_name": "Tenant Admin",
+      "email": "tenantadmin@example.com",
+      "password": "changeme"
+    }

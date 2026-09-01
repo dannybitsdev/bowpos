@@ -25,7 +25,9 @@ pub struct Category {
 
 #[async_trait]
 pub trait MenuRepository: Send + Sync {
-    async fn list_menu(&self, tenant_id: Uuid) -> Result<Vec<Category>, anyhow::Error>;
+    /// `branch` fusiona los overrides de precio/stock/disponibilidad de esa sede sobre el cat\u00e1logo global.
+    async fn list_menu(&self, tenant_id: Uuid, branch: Option<Uuid>) -> Result<Vec<Category>, anyhow::Error>;
+    async fn list_products(&self, tenant_id: Uuid) -> Result<Vec<Product>, anyhow::Error>;
     async fn list_categories(&self, tenant_id: Uuid) -> Result<Vec<Category>, anyhow::Error>;
     async fn create_product(
         &self,
@@ -52,4 +54,13 @@ pub trait MenuRepository: Send + Sync {
     async fn create_category(&self, tenant_id: Uuid, name: &str, description: Option<&str>, image_url: Option<&str>, display_order: i32) -> Result<Category, anyhow::Error>;
     async fn update_category(&self, tenant_id: Uuid, category_id: Uuid, name: &str, description: Option<&str>, image_url: Option<&str>, display_order: i32) -> Result<Option<Category>, anyhow::Error>;
     async fn deactivate_category(&self, tenant_id: Uuid, category_id: Uuid) -> Result<bool, anyhow::Error>;
+    async fn upsert_branch_override(
+        &self,
+        tenant_id: Uuid,
+        location_id: Uuid,
+        product_id: Uuid,
+        price: Option<f64>,
+        stock: Option<i32>,
+        is_available: bool,
+    ) -> Result<(), anyhow::Error>;
 }
