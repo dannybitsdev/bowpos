@@ -294,6 +294,31 @@ impl UserRepository for SqlxUserRepository {
         Ok(())
     }
 
+    async fn revoke_refresh_token_by_hash(
+        &self,
+        user_id: Uuid,
+        tenant_id: Uuid,
+        token_hash: &str,
+    ) -> Result<(), anyhow::Error> {
+        sqlx::query(
+            r#"
+            UPDATE auth_refresh_tokens
+            SET revoked_at = NOW()
+            WHERE user_id = $1
+              AND tenant_id = $2
+              AND token_hash = $3
+              AND revoked_at IS NULL
+            "#,
+        )
+        .bind(user_id)
+        .bind(tenant_id)
+        .bind(token_hash)
+        .execute(&self.pool)
+        .await?;
+
+        Ok(())
+    }
+
     async fn get_login_attempt_state(
         &self,
         email: &str,

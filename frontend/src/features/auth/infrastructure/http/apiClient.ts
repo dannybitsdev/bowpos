@@ -52,8 +52,9 @@ apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config as { _retry?: boolean } | undefined;
+    const isLogoutRequest = originalRequest?.url === '/v1/auth/logout';
 
-    if (error.response?.status === 401 && originalRequest && !originalRequest._retry) {
+    if (error.response?.status === 401 && originalRequest && !originalRequest._retry && !isLogoutRequest) {
       const { refreshToken, rotateAccessToken, logout } = useAuthStore.getState();
       if (!refreshToken) {
         logout();

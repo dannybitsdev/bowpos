@@ -17,6 +17,18 @@ impl AccessPolicy for DenyByDefault {
     }
 }
 
+pub struct AuthenticatedAccess;
+
+impl AccessPolicy for AuthenticatedAccess {
+    fn required_roles() -> &'static [Role] {
+        &[Role::SUPER_ADMIN, Role::ADMIN_TENANT, Role::BRANCH_MANAGER, Role::CAJERO, Role::MESERO, Role::COCINERO]
+    }
+
+    fn required_permissions() -> &'static [Permission] {
+        &[]
+    }
+}
+
 pub struct SuperAdminOnly;
 
 impl AccessPolicy for SuperAdminOnly {

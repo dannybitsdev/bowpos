@@ -5,6 +5,7 @@ import { useAuthStore } from '../features/auth/application/authStore';
 import { useBranchContext } from '../features/branch/application/BranchContext';
 import { usePlatformContext } from '../features/platform/application/PlatformContext';
 import type { Permission } from '../features/auth/domain/authTypes';
+import { useAuth } from '../features/auth/application/useAuth';
 
 type NavItem = {
   label: string;
@@ -79,6 +80,22 @@ export const Sidebar: React.FC<SidebarProps> = ({ open = false, onClose }) => {
   const tenantName = user?.tenant_name ?? 'Bits TI Tecnología';
   const { branches, activeBranchId, setActiveBranchId } = useBranchContext();
   const { tenants, overrideTenantId, setOverrideTenantId } = usePlatformContext();
+  const { logout } = useAuth();
+  const activeBranchName = branches.find((branch) => branch.id === activeBranchId)?.name ?? 'Todas las sedes';
+  const roleLabel = roleLabels[role ?? 'CAJERO'];
+  const initials = (user?.name ?? tenantName)
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join('')
+    .toUpperCase();
+
+  const handleLogout = () => {
+    if (window.confirm('¿Deseas cerrar la sesión actual?')) {
+      void logout();
+    }
+  };
 
   return (
     <>
@@ -155,7 +172,30 @@ export const Sidebar: React.FC<SidebarProps> = ({ open = false, onClose }) => {
           );
         })}
       </nav>
+      <div className="mt-5 border-t border-[var(--color-border)] pt-4">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary)] text-sm font-bold text-black" aria-hidden="true">
+            {initials}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-semibold text-[var(--color-text)]">{user?.name ?? 'Usuario'}</p>
+            <p className="truncate text-xs text-[var(--color-muted)]">{roleLabel} · {activeBranchName}</p>
+          </div>
+          <button type="button" onClick={handleLogout} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[var(--color-border)] text-[var(--color-muted)] transition hover:border-red-400 hover:text-red-300" aria-label="Cerrar sesión" title="Cerrar sesión">
+            <span aria-hidden="true">↪</span>
+          </button>
+        </div>
+      </div>
       </aside>
     </>
   );
 };
+
+const roleLabels = {
+  SUPER_ADMIN: 'Super Admin',
+  ADMIN_TENANT: 'Administrador',
+  BRANCH_MANAGER: 'Gerente de sede',
+  CAJERO: 'Cajero',
+  MESERO: 'Mesero',
+  COCINERO: 'Cocinero',
+} as const;
