@@ -3,6 +3,7 @@ import axios from 'axios';
 
 import apiClient from '../features/auth/infrastructure/http/apiClient';
 import { ProductCard } from '../components/ProductCard';
+import { useConfirmationModal } from '../features/modal/presentation/useConfirmationModal';
 import type { MenuCategory, MenuResponse, Product, ProductPayload } from './menuTypes';
 import { sortMenu } from './menuUtils';
 
@@ -27,6 +28,7 @@ export function MenuPage() {
   const [deletingProductId, setDeletingProductId] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
+  const { confirm } = useConfirmationModal();
 
   async function loadMenu() {
     setLoading(true);
@@ -101,7 +103,14 @@ export function MenuPage() {
   }
 
   async function deleteProduct(product: Product) {
-    if (!window.confirm(`¿Eliminar "${product.name}" del menú?`)) return;
+    const confirmed = await confirm({
+      title: 'Eliminar producto',
+      description: `¿Deseas eliminar "${product.name}" del menú? Esta acción no se puede deshacer.`,
+      confirmLabel: 'Eliminar',
+      cancelLabel: 'Cancelar',
+      variant: 'destructive',
+    });
+    if (!confirmed) return;
 
     setDeletingProductId(product.id);
     setError(null);

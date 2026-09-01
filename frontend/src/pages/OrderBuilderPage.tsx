@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
 
 import apiClient from '../features/auth/infrastructure/http/apiClient';
 import { OrderSummary } from '../components/OrderSummary';
 import { ProductCustomizeModal } from '../components/ProductCustomizeModal';
+import { useConfirmationModal } from '../features/modal/presentation/useConfirmationModal';
 import type { CatalogProduct, CreateOrderPayload, OrderDraftItem, ServiceType } from './orderTypes';
 
 const currency = (value: number) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(value);
@@ -21,6 +22,8 @@ export function OrderBuilderPage() {
   const [activeTab, setActiveTab] = useState<'catalog' | 'summary'>('catalog');
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const { confirm } = useConfirmationModal();
 
   useEffect(() => {
     void apiClient.get<CatalogProduct[]>('/v1/orders/catalog')
@@ -32,6 +35,29 @@ export function OrderBuilderPage() {
     () => catalog.filter((product) => product.name.toLocaleLowerCase().includes(search.toLocaleLowerCase())),
     [catalog, search],
   );
+
+  // Atajos de teclado para operación de alta velocidad: "/" busca, "F2" envía el pedido.
+  useEffect(() => {
+    function handleShortcut(event: KeyboardEvent) {
+      const target = event.target as HTMLElement | null;
+      const isTypingInField = target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA' || target?.tagName === 'SELECT';
+
+      if (event.key === '/' && !isTypingInField) {
+        event.preventDefault();
+        searchInputRef.current?.focus();
+        return;
+      }
+
+      if (event.key === 'F2' && !saving && items.length > 0) {
+        event.preventDefault();
+        void processOrder();
+      }
+    }
+
+    document.addEventListener('keydown', handleShortcut);
+    return () => document.removeEventListener('keydown', handleShortcut);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items, saving]);
 
   function saveItem(item: OrderDraftItem) {
     setItems((current) => editingItem ? current.map((value) => value.id === item.id ? item : value) : [...current, item]);
@@ -46,6 +72,15 @@ export function OrderBuilderPage() {
   }
 
   async function processOrder() {
+    const confirmed = await confirm({
+      title: 'Confirmar pedido',
+      description: `Vas a enviar un pedido con ${items.length} producto(s) a preparación. Verifica los ítems antes de continuar.`,
+      confirmLabel: 'Enviar pedido',
+      cancelLabel: 'Revisar pedido',
+      variant: 'info',
+    });
+    if (!confirmed) return;
+
     setSaving(true);
     setMessage(null);
     const payload: CreateOrderPayload = {
@@ -76,8 +111,8 @@ export function OrderBuilderPage() {
   }
 
   return (
-    <section className="min-h-screen min-w-0 bg-[var(--color-background)] p-4 text-[var(--color-text)] sm:p-5 lg:p-8">
-      <header className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+    <section className="flex h-screen min-w-0 flex-col overflow-hidden bg-[var(--color-background)] p-4 text-[var(--color-text)] sm:p-5 lg:p-8">
+      <header className="mb-5 flex shrink-0 flex-col gap-4 sm:flex-row sm:items-end sm:justify-between" data-testid="order-fixed-header">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.35em] text-[var(--color-primary)]">Operación</p>
           <h1 className="text-3xl font-semibold text-white sm:text-4xl">Nueva orden</h1>
@@ -89,18 +124,20 @@ export function OrderBuilderPage() {
           <button type="button" onClick={() => setActiveTab('summary')} className={`flex-1 rounded-lg px-4 py-2 text-sm ${activeTab === 'summary' ? 'bg-[var(--color-primary)] font-semibold text-black' : 'text-[var(--color-muted)]'}`}>Pedido ({items.length})</button>
         </div>
       </header>
-      {message ? <p className="mb-5 rounded-xl border border-[var(--color-primary)]/30 bg-[var(--color-primary)]/10 p-3 text-sm text-[var(--color-primary)]">{message}</p> : null}
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,26rem)]">
-        <div className={activeTab === 'summary' ? 'hidden lg:block' : ''}>
-          <div className="mb-4 flex flex-col gap-3 sm:flex-row">
-            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar producto..." className="min-w-0 flex-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-card-bg)] px-4 py-3 text-sm text-white outline-none focus:border-[var(--color-primary)]" />
+      {message ? <p className="mb-5 shrink-0 rounded-xl border border-[var(--color-primary)]/30 bg-[var(--color-primary)]/10 p-3 text-sm text-[var(--color-primary)]">{message}</p> : null}
+      <div className="grid min-h-0 flex-1 gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,26rem)]">
+        <div className={`flex min-h-0 flex-col ${activeTab === 'summary' ? 'hidden lg:flex' : ''}`}>
+          <div className="mb-4 flex shrink-0 flex-col gap-3 sm:flex-row" data-testid="order-filters-bar">
+            <input ref={searchInputRef} value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar producto... (/)" className="min-w-0 flex-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-card-bg)] px-4 py-3 text-sm text-white outline-none focus:border-[var(--color-primary)]" />
             <div className="flex gap-2"><input value={tableName} onChange={(event) => setTableName(event.target.value)} placeholder="Mesa" className="w-28 rounded-xl border border-[var(--color-border)] bg-[var(--color-card-bg)] px-3 py-3 text-sm text-white outline-none focus:border-[var(--color-primary)]" /><input value={customerName} onChange={(event) => setCustomerName(event.target.value)} placeholder="Cliente" className="w-32 rounded-xl border border-[var(--color-border)] bg-[var(--color-card-bg)] px-3 py-3 text-sm text-white outline-none focus:border-[var(--color-primary)]" /></div>
           </div>
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {filteredCatalog.map((product) => <button type="button" key={product.id} onClick={() => { setEditingItem(undefined); setSelectedProduct(product); }} className="flex min-w-0 flex-col overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-card-bg)] text-left transition hover:border-[var(--color-primary)]/70"><div className="aspect-[4/3] overflow-hidden bg-[#0D0D0D]">{product.image_url ? <img src={product.image_url} alt={product.name} loading="lazy" className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center text-3xl" aria-hidden="true">🍽</div>}</div><div className="flex items-center justify-between gap-3 p-4"><span className="min-w-0 break-words font-semibold text-white">{product.name}</span><span className="shrink-0 text-sm text-[var(--color-primary)]">{currency(product.price)}</span></div></button>)}
+          <div className="min-h-0 flex-1 overflow-y-auto pr-1" data-testid="order-scrollable-menu">
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              {filteredCatalog.map((product) => <button type="button" key={product.id} onClick={() => { setEditingItem(undefined); setSelectedProduct(product); }} className="flex min-w-0 flex-col overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-card-bg)] text-left transition hover:border-[var(--color-primary)]/70"><div className="aspect-[4/3] overflow-hidden bg-[#0D0D0D]">{product.image_url ? <img src={product.image_url} alt={product.name} loading="lazy" className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center text-3xl" aria-hidden="true">🍽</div>}</div><div className="flex items-center justify-between gap-3 p-4"><span className="min-w-0 break-words font-semibold text-white">{product.name}</span><span className="shrink-0 text-sm text-[var(--color-primary)]">{currency(product.price)}</span></div></button>)}
+            </div>
           </div>
         </div>
-        <div className={activeTab === 'catalog' ? 'hidden lg:block' : ''}>
+        <div className={`min-h-0 ${activeTab === 'catalog' ? 'hidden lg:block' : ''}`} data-testid="order-summary-panel">
           <OrderSummary items={items} serviceType={serviceType} orderNotes={orderNotes} onOrderNotesChange={setOrderNotes} onServiceTypeChange={setServiceType} onEdit={editItem} onRemove={(id) => setItems((current) => current.filter((item) => item.id !== id))} onSubmit={() => void processOrder()} saving={saving} />
         </div>
       </div>
