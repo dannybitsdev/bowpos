@@ -3,9 +3,6 @@ ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;
 ALTER TABLE users ADD CONSTRAINT users_role_check
     CHECK (role IN ('SUPER_ADMIN','ADMIN_TENANT','BRANCH_MANAGER','CAJERO','MESERO'));
 
-ALTER TABLE users DROP CONSTRAINT IF EXISTS users_tenant_id_unique;
-ALTER TABLE users ADD CONSTRAINT users_tenant_id_unique UNIQUE (id, tenant_id);
-
 -- Fase 1: acceso de usuario a una o varias sedes (reemplaza el uso exclusivo de users.location_id)
 CREATE TABLE IF NOT EXISTS user_branch_access (
     tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
@@ -14,9 +11,14 @@ CREATE TABLE IF NOT EXISTS user_branch_access (
     is_primary BOOLEAN NOT NULL DEFAULT FALSE,
     granted_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     PRIMARY KEY (tenant_id, user_id, location_id),
-    FOREIGN KEY (user_id, tenant_id) REFERENCES users(id, tenant_id) ON DELETE CASCADE,
     FOREIGN KEY (location_id, tenant_id) REFERENCES locations(id, tenant_id) ON DELETE CASCADE
 );
+
+ALTER TABLE user_branch_access DROP CONSTRAINT IF EXISTS user_branch_access_user_id_tenant_id_fkey;
+ALTER TABLE users DROP CONSTRAINT IF EXISTS users_tenant_id_unique;
+ALTER TABLE users ADD CONSTRAINT users_tenant_id_unique UNIQUE (id, tenant_id);
+ALTER TABLE user_branch_access ADD CONSTRAINT user_branch_access_user_id_tenant_id_fkey
+    FOREIGN KEY (user_id, tenant_id) REFERENCES users(id, tenant_id) ON DELETE CASCADE;
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_user_branch_primary
     ON user_branch_access (tenant_id, user_id) WHERE is_primary;
