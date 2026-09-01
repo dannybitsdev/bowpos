@@ -72,12 +72,14 @@ async fn seed_tenant_full(pool: &PgPool, tenant_id: Uuid) -> Result<(), anyhow::
     let waiter_main_id = ensure_staff_user(pool, tenant_id, &format!("mesero.principal@{tenant_slug}.com"), "Mesero Sede Principal", "MESERO").await?;
     let manager_north_id = ensure_staff_user(pool, tenant_id, &format!("gerente.norte@{tenant_slug}.com"), "Gerente Sede Norte", "BRANCH_MANAGER").await?;
     let cashier_north_id = ensure_staff_user(pool, tenant_id, &format!("cajero.norte@{tenant_slug}.com"), "Cajero Sede Norte", "CAJERO").await?;
+    let cook_main_id = ensure_staff_user(pool, tenant_id, &format!("cocinero.principal@{tenant_slug}.com"), "Cocinero Sede Principal", "COCINERO").await?;
 
     assign_branch(pool, tenant_id, manager_id, main_branch, true).await?;
     assign_branch(pool, tenant_id, cashier_main_id, main_branch, true).await?;
     assign_branch(pool, tenant_id, waiter_main_id, main_branch, true).await?;
     assign_branch(pool, tenant_id, manager_north_id, north_branch, true).await?;
     assign_branch(pool, tenant_id, cashier_north_id, north_branch, true).await?;
+    assign_branch(pool, tenant_id, cook_main_id, main_branch, true).await?;
 
     seed_demo_orders(pool, tenant_id, main_branch, cashier_main_id).await?;
     seed_demo_orders(pool, tenant_id, north_branch, cashier_north_id).await?;

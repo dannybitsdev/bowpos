@@ -12,7 +12,7 @@ describe('authStore', () => {
       user_id: 'user-1',
       tenant_id: 'tenant-1',
       role: 'SUPER_ADMIN',
-      permissions: ['manage:tenant_admins'],
+      permissions: ['usuarios:create'],
     });
 
     const state = useAuthStore.getState();
@@ -27,7 +27,7 @@ describe('authStore', () => {
       user_id: 'user-1',
       tenant_id: 'tenant-1',
       role: 'ADMIN_TENANT',
-      permissions: ['manage:tenant_users'],
+      permissions: ['usuarios:read'],
     });
 
     useAuthStore.getState().logout();

@@ -35,7 +35,7 @@ describe('ProtectedRoute', () => {
       user_id: 'u1',
       tenant_id: 't1',
       role: 'SUPER_ADMIN',
-      permissions: ['manage:tenant_admins'],
+      permissions: ['usuarios:create'],
     });
 
     render(

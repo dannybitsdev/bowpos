@@ -25,7 +25,7 @@ impl AccessPolicy for SuperAdminOnly {
     }
 
     fn required_permissions() -> &'static [Permission] {
-        &[Permission::ManageTenantAdmins]
+        &[Permission::UsersCreate]
     }
 }
 
@@ -37,7 +37,7 @@ impl AccessPolicy for TenantAdminOnly {
     }
 
     fn required_permissions() -> &'static [Permission] {
-        &[Permission::ManageTenantUsers]
+        &[Permission::UsersCreate]
     }
 }
 
@@ -49,7 +49,7 @@ impl AccessPolicy for MenuReadAccess {
     }
 
     fn required_permissions() -> &'static [Permission] {
-        &[Permission::ReadTenantData]
+        &[Permission::InventoryRead]
     }
 }
 
@@ -61,7 +61,7 @@ impl AccessPolicy for MenuWriteAccess {
     }
 
     fn required_permissions() -> &'static [Permission] {
-        &[Permission::ManageTenantUsers]
+        &[Permission::InventoryAdmin]
     }
 }
 
@@ -74,7 +74,7 @@ impl AccessPolicy for BranchCatalogWriteAccess {
     }
 
     fn required_permissions() -> &'static [Permission] {
-        &[Permission::ManageBranchCatalog]
+        &[Permission::InventoryUpdate]
     }
 }
 
@@ -87,7 +87,7 @@ impl AccessPolicy for LocationWriteAccess {
     }
 
     fn required_permissions() -> &'static [Permission] {
-        &[Permission::ManageTenantUsers]
+        &[Permission::ConfigLocations]
     }
 }
 
@@ -100,7 +100,7 @@ impl AccessPolicy for BranchAssignmentAccess {
     }
 
     fn required_permissions() -> &'static [Permission] {
-        &[Permission::ManageTenantUsers]
+        &[Permission::UsersCreate]
     }
 }
 
@@ -108,12 +108,33 @@ pub struct OrderReadAccess;
 
 impl AccessPolicy for OrderReadAccess {
     fn required_roles() -> &'static [Role] { &[Role::SUPER_ADMIN, Role::ADMIN_TENANT, Role::BRANCH_MANAGER, Role::CAJERO, Role::MESERO] }
-    fn required_permissions() -> &'static [Permission] { &[Permission::ReadTenantData] }
+    fn required_permissions() -> &'static [Permission] { &[Permission::OrdersRead] }
 }
 
 pub struct OrderWriteAccess;
 
 impl AccessPolicy for OrderWriteAccess {
     fn required_roles() -> &'static [Role] { &[Role::SUPER_ADMIN, Role::ADMIN_TENANT, Role::BRANCH_MANAGER, Role::CAJERO, Role::MESERO] }
-    fn required_permissions() -> &'static [Permission] { &[Permission::ReadTenantData] }
+    fn required_permissions() -> &'static [Permission] { &[Permission::OrdersCreate] }
+}
+
+pub struct OrderStatusUpdateAccess;
+
+impl AccessPolicy for OrderStatusUpdateAccess {
+    fn required_roles() -> &'static [Role] { &[Role::SUPER_ADMIN, Role::ADMIN_TENANT, Role::BRANCH_MANAGER, Role::MESERO, Role::COCINERO] }
+    fn required_permissions() -> &'static [Permission] { &[Permission::OrdersUpdate] }
+}
+
+pub struct SalesReadAccess;
+
+impl AccessPolicy for SalesReadAccess {
+    fn required_roles() -> &'static [Role] { &[Role::SUPER_ADMIN, Role::ADMIN_TENANT, Role::BRANCH_MANAGER, Role::CAJERO] }
+    fn required_permissions() -> &'static [Permission] { &[Permission::SalesRead] }
+}
+
+pub struct ConfigUpdateAccess;
+
+impl AccessPolicy for ConfigUpdateAccess {
+    fn required_roles() -> &'static [Role] { &[Role::SUPER_ADMIN, Role::ADMIN_TENANT] }
+    fn required_permissions() -> &'static [Permission] { &[Permission::ConfigUpdate] }
 }

@@ -1,7 +1,7 @@
 -- Fase 1: rol BRANCH_MANAGER
 ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;
 ALTER TABLE users ADD CONSTRAINT users_role_check
-    CHECK (role IN ('SUPER_ADMIN','ADMIN_TENANT','BRANCH_MANAGER','CAJERO','MESERO'));
+    CHECK (role IN ('SUPER_ADMIN','ADMIN_TENANT','BRANCH_MANAGER','CAJERO','MESERO','COCINERO'));
 
 -- Fase 1: acceso de usuario a una o varias sedes (reemplaza el uso exclusivo de users.location_id)
 CREATE TABLE IF NOT EXISTS user_branch_access (

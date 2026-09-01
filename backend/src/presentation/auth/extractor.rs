@@ -3,6 +3,8 @@ use std::marker::PhantomData;
 use axum::{
     extract::FromRequestParts,
     http::{header::AUTHORIZATION, request::Parts, StatusCode},
+    response::{IntoResponse, Response},
+    Json,
 };
 use async_trait::async_trait;
 use uuid::Uuid;
@@ -14,6 +16,32 @@ use crate::{
 };
 
 use super::policy::{AccessPolicy, DenyByDefault};
+
+pub struct AuthorizationError {
+    status: StatusCode,
+    message: &'static str,
+}
+
+impl AuthorizationError {
+    const fn new(status: StatusCode, message: &'static str) -> Self {
+        Self { status, message }
+    }
+}
+
+impl IntoResponse for AuthorizationError {
+    fn into_response(self) -> Response {
+        (
+            self.status,
+            Json(serde_json::json!({
+                "error": {
+                    "code": self.status.as_u16(),
+                    "message": self.message,
+                }
+            })),
+        )
+            .into_response()
+    }
+}
 
 #[derive(Clone)]
 pub struct AuthUser<P = DenyByDefault>
@@ -44,7 +72,7 @@ where
     AppState: FromRef<S>,
     P: AccessPolicy + Send + Sync,
 {
-    type Rejection = (StatusCode, &'static str);
+    type Rejection = AuthorizationError;
 
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
         let app_state = AppState::from_ref(state);
@@ -54,38 +82,35 @@ where
             .and_then(|value| value.to_str().ok())
         {
             Some(value) => value,
-            None => return Err((StatusCode::UNAUTHORIZED, "missing authorization header")),
+            None => return Err(AuthorizationError::new(StatusCode::UNAUTHORIZED, "missing authorization header")),
         };
 
         let token = match auth_header.strip_prefix("Bearer ") {
             Some(value) => value,
-            None => return Err((StatusCode::UNAUTHORIZED, "invalid authorization scheme")),
+            None => return Err(AuthorizationError::new(StatusCode::UNAUTHORIZED, "invalid authorization scheme")),
         };
 
         let claims = match app_state.jwt_service.validate_access_token(token) {
             Ok(value) => value,
-            Err(_) => return Err((StatusCode::UNAUTHORIZED, "invalid or expired token")),
+            Err(_) => return Err(AuthorizationError::new(StatusCode::UNAUTHORIZED, "invalid or expired token")),
         };
 
         let no_role_guard = P::required_roles().is_empty();
         let no_permission_guard = P::required_permissions().is_empty();
         if no_role_guard && no_permission_guard {
-            return Err((
-                StatusCode::FORBIDDEN,
-                "endpoint guard is required and not configured",
-            ));
+            return Err(AuthorizationError::new(StatusCode::FORBIDDEN, "endpoint guard is required and not configured"));
         }
 
         let has_roles = JwtService::has_role(&claims, P::required_roles());
         let has_permissions = JwtService::has_permissions(&claims, P::required_permissions());
 
         if !has_roles || !has_permissions {
-            return Err((StatusCode::FORBIDDEN, "insufficient privileges"));
+            return Err(AuthorizationError::new(StatusCode::FORBIDDEN, "insufficient privileges"));
         }
 
         let mut user = match app_state.auth_use_cases.claims_to_user(&claims) {
             Ok(value) => value,
-            Err(_) => return Err((StatusCode::UNAUTHORIZED, "invalid token claims")),
+            Err(_) => return Err(AuthorizationError::new(StatusCode::UNAUTHORIZED, "invalid token claims")),
         };
 
         // "Modo plataforma": SOLO SUPER_ADMIN puede operar sobre un tenant distinto al suyo,
@@ -105,7 +130,7 @@ where
                     .await
                     .unwrap_or(false);
                 if !exists {
-                    return Err((StatusCode::NOT_FOUND, "tenant override not found"));
+                    return Err(AuthorizationError::new(StatusCode::NOT_FOUND, "tenant override not found"));
                 }
                 user.tenant_id = override_tenant_id;
                 user.branch_ids = Vec::new();
@@ -123,7 +148,7 @@ where
                 if user.branch_ids.is_empty() || user.branch_ids.contains(&branch_id) {
                     Some(branch_id)
                 } else {
-                    return Err((StatusCode::FORBIDDEN, "branch not accessible"));
+                    return Err(AuthorizationError::new(StatusCode::FORBIDDEN, "branch not accessible"));
                 }
             }
             None if user.branch_ids.len() == 1 => Some(user.branch_ids[0]),
@@ -131,7 +156,7 @@ where
         };
 
         if branch.is_none() && matches!(user.role, Role::BRANCH_MANAGER | Role::CAJERO | Role::MESERO) {
-            return Err((StatusCode::BAD_REQUEST, "x-branch-id header is required for this role"));
+            return Err(AuthorizationError::new(StatusCode::BAD_REQUEST, "x-branch-id header is required for this role"));
         }
 
         Ok(Self {
@@ -148,7 +173,7 @@ use axum::extract::FromRef;
 mod tests {
     use std::sync::Arc;
 
-    use axum::{body::Body, http::Request, routing::get, Router};
+    use axum::{body::Body, http::Request, routing::{get, post}, Router};
     use chrono::Utc;
     use jsonwebtoken::{encode, EncodingKey, Header};
     use tower::ServiceExt;
@@ -166,7 +191,7 @@ mod tests {
         infrastructure::{
             services::{jwt_service::JwtService, password_hasher::PasswordHasher, refresh_token_service::RefreshTokenService},
         },
-        presentation::auth::policy::{SuperAdminOnly, TenantAdminOnly},
+        presentation::auth::policy::{ConfigUpdateAccess, SuperAdminOnly, TenantAdminOnly},
         AppState,
     };
 
@@ -219,6 +244,10 @@ mod tests {
         "ok"
     }
 
+    async fn config_update_endpoint(_auth: AuthUser<ConfigUpdateAccess>) -> &'static str {
+        "ok"
+    }
+
     fn app() -> Router {
         let repo = Arc::new(EmptyRepo);
         let jwt = JwtService::new("tests-secret", 1);
@@ -242,6 +271,7 @@ mod tests {
         Router::new()
             .route("/super", get(super_admin_endpoint))
             .route("/tenant", get(tenant_admin_endpoint))
+            .route("/config", post(config_update_endpoint))
             .with_state(state)
     }
 
@@ -321,6 +351,36 @@ mod tests {
             .oneshot(
                 Request::builder()
                     .uri("/tenant")
+                    .header("Authorization", format!("Bearer {token}"))
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+
+        assert_eq!(response.status(), axum::http::StatusCode::FORBIDDEN);
+    }
+
+    #[tokio::test]
+    async fn cashier_cannot_update_configuration() {
+        let jwt = JwtService::new("tests-secret", 3600);
+        let user = crate::domain::auth::User {
+            id: Uuid::new_v4(),
+            tenant_id: Uuid::new_v4(),
+            tenant_name: "Demo".to_string(),
+            name: "Cashier".to_string(),
+            email: Email::parse("cashier@example.com").expect("email"),
+            password_hash: PasswordHash::new("$argon2id$v=19$m=19456,t=2,p=1$a2V5$YWJj".to_string()).expect("hash"),
+            role: Role::CAJERO,
+            branch_ids: Vec::new(),
+        };
+        let token = jwt.issue_access_token(&crate::infrastructure::services::jwt_service::JwtClaims::from_user(&user)).expect("token");
+
+        let response = app()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/config")
                     .header("Authorization", format!("Bearer {token}"))
                     .body(Body::empty())
                     .expect("request"),
