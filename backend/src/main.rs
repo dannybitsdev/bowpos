@@ -25,7 +25,7 @@ use presentation::auth::router::auth_router;
 use serde::Serialize;
 use sqlx::PgPool;
 use std::{env, sync::Arc};
-use tower_http::cors::{Any, CorsLayer};
+use tower_http::cors::{AllowOrigin, Any, CorsLayer};
 
 use crate::application::{auth::use_cases::AuthUseCases, menu::MenuService, orders::OrderService};
 
@@ -54,6 +54,11 @@ async fn main() {
         .ok()
         .and_then(|value| value.parse::<u64>().ok())
         .unwrap_or(60 * 60 * 4);
+    // Absorbe el desfase de reloj entre réplicas/nodos del backend en producción.
+    let jwt_leeway_seconds = env::var("JWT_LEEWAY_SECONDS")
+        .ok()
+        .and_then(|value| value.parse::<u64>().ok())
+        .unwrap_or(60);
     let refresh_secret = env::var("REFRESH_TOKEN_SECRET").unwrap_or_else(|_| jwt_secret.clone());
     let refresh_ttl_seconds = env::var("REFRESH_TOKEN_TTL_SECONDS")
         .ok()
@@ -105,7 +110,7 @@ async fn main() {
     seed_initial_super_admin(&pool).await.expect("seed super admin");
 
     let repository = Arc::new(SqlxUserRepository::new(pool.clone()));
-    let jwt_service = JwtService::new(&jwt_secret, jwt_ttl_seconds);
+    let jwt_service = JwtService::with_leeway(&jwt_secret, jwt_ttl_seconds, jwt_leeway_seconds);
     let auth_use_cases = Arc::new(AuthUseCases::new(
         repository,
         PasswordHasher::default(),
@@ -141,8 +146,11 @@ async fn main() {
         .nest("/api/v1/auth", auth_router())
         .layer(
             CorsLayer::new()
-                .allow_origin(Any)
-                .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
+                .allow_origin(cors_allow_origin())
+                // PUT/DELETE eran omitidos: cualquier despliegue con frontend y backend en
+                // orígenes distintos (p.ej. Render) bloqueaba en el navegador (preflight
+                // CORS) toda edición/borrado de categorías, productos y estado de órdenes.
+                .allow_methods([Method::GET, Method::POST, Method::PUT, Method::DELETE, Method::OPTIONS])
                 .allow_headers([
                     header::CONTENT_TYPE,
                     header::AUTHORIZATION,
@@ -164,6 +172,21 @@ async fn main() {
 
     println!("Backend listening on http://{bind_address}");
     axum::serve(listener, app).await.expect("axum server");
+}
+
+/// `CORS_ALLOWED_ORIGINS`: lista separada por comas (p.ej. `https://app.dominio.com,https://admin.dominio.com`).
+/// Sin definir, cae en `Any` (válido aquí porque no usamos cookies/credenciales, solo `Authorization: Bearer`).
+fn cors_allow_origin() -> AllowOrigin {
+    match env::var("CORS_ALLOWED_ORIGINS") {
+        Ok(value) if !value.trim().is_empty() => {
+            let origins = value
+                .split(',')
+                .filter_map(|origin| origin.trim().parse().ok())
+                .collect::<Vec<_>>();
+            AllowOrigin::list(origins)
+        }
+        _ => Any.into(),
+    }
 }
 
 async fn health() -> Json<HealthResponse> {

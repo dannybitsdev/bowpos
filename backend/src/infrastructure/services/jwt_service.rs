@@ -54,14 +54,23 @@ pub struct JwtService {
     encoding_key: EncodingKey,
     decoding_key: DecodingKey,
     ttl_seconds: u64,
+    leeway_seconds: u64,
 }
 
 impl JwtService {
     pub fn new(secret: &str, ttl_seconds: u64) -> Self {
+        Self::with_leeway(secret, ttl_seconds, 60)
+    }
+
+    /// `leeway_seconds` absorbe el desfase de reloj entre réplicas del backend (no del
+    /// cliente: `exp`/`iat` siempre se validan con la hora del servidor). En producción con
+    /// varios contenedores/nodos sin NTP sincronizado, un leeway de 60s puede no bastar.
+    pub fn with_leeway(secret: &str, ttl_seconds: u64, leeway_seconds: u64) -> Self {
         Self {
             encoding_key: EncodingKey::from_secret(secret.as_bytes()),
             decoding_key: DecodingKey::from_secret(secret.as_bytes()),
             ttl_seconds,
+            leeway_seconds,
         }
     }
 
@@ -80,6 +89,7 @@ impl JwtService {
     pub fn validate_access_token(&self, token: &str) -> Result<JwtClaims, anyhow::Error> {
         let mut validation = Validation::default();
         validation.validate_exp = true;
+        validation.leeway = self.leeway_seconds;
         let data = decode::<JwtClaims>(token, &self.decoding_key, &validation)
             .map_err(|error| anyhow::anyhow!("invalid token: {error}"))?;
         Ok(data.claims)
