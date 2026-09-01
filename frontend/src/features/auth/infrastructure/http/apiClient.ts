@@ -51,10 +51,16 @@ apiClient.interceptors.request.use((config) => {
 apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
-    const originalRequest = error.config as { _retry?: boolean } | undefined;
-    const isLogoutRequest = originalRequest?.url === '/v1/auth/logout';
+    const originalRequest = error.config as { _retry?: boolean; url?: string } | undefined;
+    // Un 401 en login/refresh/logout debe resolverlo quien hizo la llamada (p.ej. mostrar
+    // "credenciales inválidas" en el formulario), no el interceptor global: forzar aquí un
+    // logout() + window.location.assign('/login') pisaba ese manejo y recargaba la SPA a
+    // mitad del intento de inicio de sesión, aparentando un "logout inmediato tras login".
+    const isAuthEndpoint = originalRequest?.url === '/v1/auth/logout'
+      || originalRequest?.url === '/auth/login'
+      || originalRequest?.url === '/auth/refresh';
 
-    if (error.response?.status === 401 && originalRequest && !originalRequest._retry && !isLogoutRequest) {
+    if (error.response?.status === 401 && originalRequest && !originalRequest._retry && !isAuthEndpoint) {
       const { refreshToken, rotateAccessToken, logout } = useAuthStore.getState();
       if (!refreshToken) {
         logout();
@@ -84,7 +90,7 @@ apiClient.interceptors.response.use(
       }
     }
 
-    if (error.response?.status === 401) {
+    if (error.response?.status === 401 && !isAuthEndpoint) {
       useAuthStore.getState().logout();
       window.location.assign('/login');
     }
