@@ -22,6 +22,27 @@ const refreshClient = axios.create({
   timeout: 12000,
 });
 
+let refreshPromise: Promise<string> | null = null;
+
+function refreshAccessToken(refreshToken: string): Promise<string> {
+  if (!refreshPromise) {
+    refreshPromise = refreshClient.post('/auth/refresh', {
+      refresh_token: refreshToken,
+    }).then((refreshResponse) => {
+      const tokens = refreshResponse.data.tokens;
+      useAuthStore.getState().rotateAccessToken({
+        accessToken: tokens.access_token,
+        refreshToken: tokens.refresh_token,
+      });
+      return tokens.access_token as string;
+    }).finally(() => {
+      refreshPromise = null;
+    });
+  }
+
+  return refreshPromise;
+}
+
 apiClient.interceptors.request.use((config) => {
   const { accessToken, user } = useAuthStore.getState();
 
@@ -61,7 +82,7 @@ apiClient.interceptors.response.use(
       || originalRequest?.url === '/auth/refresh';
 
     if (error.response?.status === 401 && originalRequest && !originalRequest._retry && !isAuthEndpoint) {
-      const { refreshToken, rotateAccessToken, logout } = useAuthStore.getState();
+      const { refreshToken, logout } = useAuthStore.getState();
       if (!refreshToken) {
         logout();
         window.location.assign('/login');
@@ -71,17 +92,10 @@ apiClient.interceptors.response.use(
       originalRequest._retry = true;
 
       try {
-        const refreshResponse = await refreshClient.post('/auth/refresh', {
-          refresh_token: refreshToken,
-        });
-
-        rotateAccessToken({
-          accessToken: refreshResponse.data.tokens.access_token,
-          refreshToken: refreshResponse.data.tokens.refresh_token,
-        });
+        const accessToken = await refreshAccessToken(refreshToken);
 
         originalRequest.headers = originalRequest.headers ?? {};
-        originalRequest.headers.Authorization = `Bearer ${refreshResponse.data.tokens.access_token}`;
+        originalRequest.headers.Authorization = `Bearer ${accessToken}`;
         return apiClient(originalRequest);
       } catch {
         logout();
