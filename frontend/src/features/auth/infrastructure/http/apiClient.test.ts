@@ -9,7 +9,7 @@ describe('apiClient refresh handling', () => {
     vi.restoreAllMocks();
   });
 
-  it('shares one refresh request across concurrent 401 responses', async () => {
+  it('keeps a cashier session across branch 403s and concurrent 401 refreshes', async () => {
     const clients: ReturnType<typeof axios.create>[] = [];
     const create = axios.create.bind(axios);
     vi.spyOn(axios, 'create').mockImplementation((config) => {
@@ -23,8 +23,8 @@ describe('apiClient refresh handling', () => {
     useAuthStore.getState().login({ accessToken: 'expired', refreshToken: 'refresh-old' }, {
       user_id: 'user-1',
       tenant_id: 'tenant-1',
-      role: 'SUPER_ADMIN',
-      permissions: ['dashboard:read'],
+      role: 'CAJERO',
+      permissions: ['dashboard:read', 'ventas:read', 'ventas:create', 'ordenes:read', 'ordenes:create'],
     });
 
     let resolveRefresh!: (response: unknown) => void;
@@ -61,6 +61,14 @@ describe('apiClient refresh handling', () => {
     expect(adapter).toHaveBeenCalledTimes(2);
     expect(useAuthStore.getState().accessToken).toBe('access-new');
     expect(useAuthStore.getState().refreshToken).toBe('refresh-new');
+    expect(useAuthStore.getState().isAuthenticated).toBe(true);
+
+    const branchForbidden = {
+      config: { url: '/locations', headers: {} },
+      response: { status: 403 },
+    };
+    await expect(rejectResponse(branchForbidden)).rejects.toBe(branchForbidden);
+    expect(refreshClient.post).toHaveBeenCalledTimes(1);
     expect(useAuthStore.getState().isAuthenticated).toBe(true);
   });
 });
