@@ -99,6 +99,25 @@
 			],
 			"isBackground": false,
 			"problemMatcher": []
+		},
+		{
+			"label": "Final backend compile check",
+			"type": "shell",
+			"command": "wsl.exe",
+			"args": [
+				"-d",
+				"archlinux",
+				"--",
+				"env",
+				"PAGER=cat",
+				"CARGO_TARGET_DIR=/tmp/bowpos-copilot-target",
+				"cargo",
+				"check",
+				"--manifest-path",
+				"/home/danny/projects/bowpos/backend/Cargo.toml"
+			],
+			"isBackground": false,
+			"problemMatcher": []
 		}
 	]
 }
