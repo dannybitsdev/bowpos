@@ -15,9 +15,9 @@ services:
         sync: false
       # Frontend y backend son servicios/orígenes distintos en Render: sin esto,
       # allow_origin cae en `Any`, lo que basta para JSON pero conviene fijarlo
-      # explícitamente en producción (https://bowpos-frontend.onrender.com,...).
+      # explícitamente al dominio de la SPA en producción.
       - key: CORS_ALLOWED_ORIGINS
-        sync: false
+        value: https://bowpos.onrender.com
       - key: JWT_LEEWAY_SECONDS
         value: "60"
 

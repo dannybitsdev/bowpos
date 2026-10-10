@@ -17,6 +17,14 @@ use crate::{
 
 use super::policy::{AccessPolicy, DenyByDefault};
 
+fn extract_bearer_token(auth_header: &str) -> Option<&str> {
+    let mut parts = auth_header.split_ascii_whitespace();
+    let scheme = parts.next()?;
+    let token = parts.next()?;
+
+    (scheme.eq_ignore_ascii_case("Bearer") && parts.next().is_none()).then_some(token)
+}
+
 pub struct AuthorizationError {
     status: StatusCode,
     message: &'static str,
@@ -87,14 +95,15 @@ where
             None => return Err(AuthorizationError::new(StatusCode::UNAUTHORIZED, "missing authorization header")),
         };
 
-        let token = match auth_header.strip_prefix("Bearer ") {
-            Some(value) => value,
-            None => return Err(AuthorizationError::new(StatusCode::UNAUTHORIZED, "invalid authorization scheme")),
-        };
+        let token = extract_bearer_token(auth_header)
+            .ok_or_else(|| AuthorizationError::new(StatusCode::UNAUTHORIZED, "invalid authorization scheme"))?;
 
         let claims = match app_state.jwt_service.validate_access_token(token) {
             Ok(value) => value,
-            Err(_) => return Err(AuthorizationError::new(StatusCode::UNAUTHORIZED, "invalid or expired token")),
+            Err(error) => {
+                eprintln!("Access token validation failed: {error:#}");
+                return Err(AuthorizationError::new(StatusCode::UNAUTHORIZED, "invalid or expired token"));
+            }
         };
 
         let is_revoked = sqlx::query_scalar::<_, bool>(
@@ -103,7 +112,10 @@ where
         .bind(claims.jti)
         .fetch_one(&app_state.pool)
         .await
-        .map_err(|_| AuthorizationError::new(StatusCode::UNAUTHORIZED, "unable to validate session"))?;
+        .map_err(|error| {
+            eprintln!("Access token revocation check failed: {error:#}");
+            AuthorizationError::new(StatusCode::UNAUTHORIZED, "unable to validate session")
+        })?;
         if is_revoked {
             return Err(AuthorizationError::new(StatusCode::UNAUTHORIZED, "token has been revoked"));
         }
@@ -210,7 +222,19 @@ mod tests {
         AppState,
     };
 
-    use super::AuthUser;
+    use super::{extract_bearer_token, AuthUser};
+
+    #[test]
+    fn bearer_token_parser_accepts_case_and_whitespace_variations() {
+        assert_eq!(extract_bearer_token("  bEaReR   token-value  "), Some("token-value"));
+    }
+
+    #[test]
+    fn bearer_token_parser_rejects_invalid_schemes_and_extra_parts() {
+        assert_eq!(extract_bearer_token("Basic token-value"), None);
+        assert_eq!(extract_bearer_token("Bearer token-value extra"), None);
+        assert_eq!(extract_bearer_token("Bearer"), None);
+    }
 
     struct EmptyRepo;
 

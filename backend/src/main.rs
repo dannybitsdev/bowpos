@@ -49,7 +49,7 @@ struct HealthResponse {
 async fn main() {
     let database_url = env::var("DATABASE_URL").unwrap_or_else(|_| "postgresql://appuser:changeme@db:5432/appdb".to_string());
     let pool = PgPool::connect(&database_url).await.expect("database connection");
-    let jwt_secret = env::var("JWT_SECRET").unwrap_or_else(|_| "change-this-jwt-secret".to_string());
+    let jwt_secret = env::var("JWT_SECRET").expect("JWT_SECRET must be configured");
     let jwt_ttl_seconds = env::var("JWT_TTL_SECONDS")
         .ok()
         .and_then(|value| value.parse::<u64>().ok())
