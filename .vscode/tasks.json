@@ -118,6 +118,43 @@
 			],
 			"isBackground": false,
 			"problemMatcher": []
+		},
+		{
+			"label": "Lint orders permission UI",
+			"type": "shell",
+			"command": "wsl.exe",
+			"args": [
+				"-d",
+				"archlinux",
+				"--",
+				"pnpm",
+				"--dir",
+				"/home/danny/projects/bowpos/frontend",
+				"exec",
+				"eslint",
+				"src/pages/OrdersPage.tsx"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Validate order status diagnostics",
+			"type": "shell",
+			"command": "wsl.exe",
+			"args": [
+				"-d",
+				"archlinux",
+				"--",
+				"env",
+				"PAGER=cat",
+				"CARGO_TARGET_DIR=/tmp/bowpos-copilot-target",
+				"cargo",
+				"check",
+				"--manifest-path",
+				"/home/danny/projects/bowpos/backend/Cargo.toml"
+			],
+			"isBackground": false,
+			"problemMatcher": []
 		}
 	]
 }
